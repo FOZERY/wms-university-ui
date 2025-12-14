@@ -20,10 +20,24 @@ function mapDocumentTypeToRu(type: string): string {
 }
 
 function printDocument(d: DocRow) {
-	const w = window.open("", "_blank", "noopener,noreferrer,width=800,height=600");
+	const w = window.open(
+		"",
+		"_blank",
+		"noopener,noreferrer,width=800,height=600"
+	);
 	if (!w) return;
 
-	const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Печать ${d.number}</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:20px}h1{font-size:18px;margin:0 0 12px}table{border-collapse:collapse;width:100%}td{padding:8px 0;border-bottom:1px solid #ddd}td:first-child{width:220px;color:#555}</style></head><body><h1>${d.number}</h1><table><tr><td>Тип</td><td>${mapDocumentTypeToRu(d.type)}</td></tr><tr><td>Статус</td><td>${d.status}</td></tr><tr><td>Дата</td><td>${d.date}</td></tr><tr><td>Автор</td><td>${d.authorLogin}</td></tr></table></body></html>`;
+	const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Печать ${
+		d.number
+	}</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:20px}h1{font-size:18px;margin:0 0 12px}table{border-collapse:collapse;width:100%}td{padding:8px 0;border-bottom:1px solid #ddd}td:first-child{width:220px;color:#555}</style></head><body><h1>${
+		d.number
+	}</h1><table><tr><td>Тип</td><td>${mapDocumentTypeToRu(
+		d.type
+	)}</td></tr><tr><td>Статус</td><td>${
+		d.status
+	}</td></tr><tr><td>Дата</td><td>${d.date}</td></tr><tr><td>Автор</td><td>${
+		d.authorLogin
+	}</td></tr></table></body></html>`;
 
 	w.document.open();
 	w.document.write(html);
@@ -102,7 +116,11 @@ const visibleDocs = computed(() => {
 					<td>{{ d.date }}</td>
 					<td>{{ d.authorLogin }}</td>
 					<td>
-						<button class="btn" type="button" @click="printDocument(d)">
+						<button
+							class="btn"
+							type="button"
+							@click="printDocument(d)"
+						>
 							Печать
 						</button>
 					</td>
