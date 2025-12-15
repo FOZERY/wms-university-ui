@@ -3,9 +3,21 @@ import { computed } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockWarehouses } from "../shared/mocks/data";
+import EditableTable from "../components/EditableTable.vue";
+import type { Warehouse } from "../shared/api/types";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
+
+const columns = computed(() => [
+	{ key: "id" as keyof Warehouse, label: "ID", width: "60px" },
+	{ key: "name" as keyof Warehouse, label: "Название" },
+	{
+		key: "address" as keyof Warehouse,
+		label: "Адрес",
+		format: (val: string | undefined) => val || "—",
+	},
+]);
 </script>
 
 <template>
@@ -23,21 +35,11 @@ const permissions = computed(() => getPermissions(auth.role));
 			</div>
 		</div>
 
-		<table class="table">
-			<thead>
-				<tr>
-					<th>ID</th>
-					<th>Название</th>
-					<th>Адрес</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr v-for="w in mockWarehouses" :key="w.id">
-					<td>{{ w.id }}</td>
-					<td>{{ w.name }}</td>
-					<td>{{ w.address || "—" }}</td>
-				</tr>
-			</tbody>
-		</table>
+		<EditableTable
+			:columns="columns"
+			:data="mockWarehouses"
+			row-key="id"
+			:can-edit="false"
+		/>
 	</div>
 </template>

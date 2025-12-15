@@ -1,11 +1,32 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import type { Supplier } from "../shared/api/types";
 import { mockSuppliers } from "../shared/mocks/data";
+import EditableTable from "../components/EditableTable.vue";
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const suppliers = ref<Supplier[]>([]);
+
+const columns = computed(() => [
+	{ key: "id" as keyof Supplier, label: "ID", width: "60px" },
+	{ key: "name" as keyof Supplier, label: "Название" },
+	{
+		key: "inn" as keyof Supplier,
+		label: "ИНН",
+		format: (val: string | undefined) => val || "—",
+	},
+	{
+		key: "phone" as keyof Supplier,
+		label: "Телефон",
+		format: (val: string | undefined) => val || "—",
+	},
+	{
+		key: "email" as keyof Supplier,
+		label: "Email",
+		format: (val: string | undefined) => val || "—",
+	},
+]);
 
 async function load() {
 	isLoading.value = true;
@@ -37,25 +58,12 @@ onMounted(load);
 		<p v-if="isLoading">Загрузка…</p>
 		<p v-else-if="error">{{ error }}</p>
 
-		<table v-else class="table">
-			<thead>
-				<tr>
-					<th>ID</th>
-					<th>Название</th>
-					<th>ИНН</th>
-					<th>Телефон</th>
-					<th>Email</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr v-for="s in suppliers" :key="s.id">
-					<td>{{ s.id }}</td>
-					<td>{{ s.name }}</td>
-					<td>{{ s.inn || "—" }}</td>
-					<td>{{ s.phone || "—" }}</td>
-					<td>{{ s.email || "—" }}</td>
-				</tr>
-			</tbody>
-		</table>
+		<EditableTable
+			v-else
+			:columns="columns"
+			:data="suppliers"
+			row-key="id"
+			:can-edit="false"
+		/>
 	</div>
 </template>

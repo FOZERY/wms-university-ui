@@ -3,12 +3,23 @@ import { computed, ref } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockStock } from "../shared/mocks/data";
+import EditableTable from "../components/EditableTable.vue";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
 
 type WarehouseFilter = "all" | "materials" | "products";
 const warehouseFilter = ref<WarehouseFilter>("all");
+
+interface StockRow {
+	warehouseId: number;
+	warehouseName: string;
+	itemId: number;
+	itemName: string;
+	quantity: string;
+	reserved: string;
+	available: string;
+}
 
 function mapWarehouseToRu(warehouseName: string): string {
 	// Простая маппинга под текущие моки.
@@ -24,6 +35,18 @@ const filteredStock = computed(() => {
 	}
 	return mockStock.filter((r) => !r.warehouseName.includes("Готов"));
 });
+
+const columns = computed(() => [
+	{
+		key: "warehouseName" as keyof StockRow,
+		label: "Склад",
+		format: mapWarehouseToRu,
+	},
+	{ key: "itemName" as keyof StockRow, label: "Товар" },
+	{ key: "quantity" as keyof StockRow, label: "Кол-во" },
+	{ key: "reserved" as keyof StockRow, label: "Резерв" },
+	{ key: "available" as keyof StockRow, label: "Доступно" },
+]);
 </script>
 
 <template>
@@ -51,28 +74,11 @@ const filteredStock = computed(() => {
 			</div>
 		</div>
 
-		<table class="table">
-			<thead>
-				<tr>
-					<th>Склад</th>
-					<th>Товар</th>
-					<th>Кол-во</th>
-					<th>Резерв</th>
-					<th>Доступно</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr
-					v-for="row in filteredStock"
-					:key="`${row.warehouseId}:${row.itemId}`"
-				>
-					<td>{{ mapWarehouseToRu(row.warehouseName) }}</td>
-					<td>{{ row.itemName }}</td>
-					<td>{{ row.quantity }}</td>
-					<td>{{ row.reserved }}</td>
-					<td>{{ row.available }}</td>
-				</tr>
-			</tbody>
-		</table>
+		<EditableTable
+			:columns="columns"
+			:data="filteredStock"
+			row-key="itemId"
+			:can-edit="false"
+		/>
 	</div>
 </template>
