@@ -71,7 +71,7 @@ defineExpose({ getCanvas });
   overflow: visible;
 
   /* sizing variables (override from parent or page if needed) */
-  --chart-card-max-width: 320px;
+  --chart-card-max-width: 360px;
   --chart-card-chart-height: 240px;
   --chart-card-scale: 1;
 
@@ -127,14 +127,14 @@ defineExpose({ getCanvas });
   border-radius: calc(8px * var(--chart-card-scale));
 }
 .summaryPane {
-  flex: 0 0 calc(160px * var(--chart-card-scale));
-  min-width: calc(160px * var(--chart-card-scale));
+  flex: 0 0 calc(170px * var(--chart-card-scale));
+  min-width: calc(170px * var(--chart-card-scale));
 }
 
 /* Responsive tweaks and scale adjustments */
 @media (max-width: 800px) {
   .chartCardWrapper {
-    --chart-card-max-width: 300px;
+    --chart-card-max-width: 340px;
     --chart-card-chart-height: 220px;
     --chart-card-scale: 0.95;
   }

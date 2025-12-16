@@ -53,6 +53,18 @@ const chartOptions = {
   plugins: {
     legend: { display: false },
     title: { display: false },
+    tooltip: {
+      enabled: true,
+      callbacks: {
+        title: (items) => {
+          // Показываем полное название склада в tooltip
+          if (items && items.length > 0) {
+            return items[0].label;
+          }
+          return "";
+        },
+      },
+    },
   },
   scales: {
     x: {
@@ -62,6 +74,16 @@ const chartOptions = {
         font: { size: 8 },
         maxRotation: 0,
         minRotation: 0,
+        callback: function (value, index, ticks) {
+          // Сокращаем длинные подписи, но показываем tooltip
+          const label = this.getLabelForValue
+            ? this.getLabelForValue(value)
+            : value;
+          if (typeof label === "string" && label.length > 10) {
+            return label.slice(0, 10) + "…";
+          }
+          return label;
+        },
       },
       grid: { display: false },
     },

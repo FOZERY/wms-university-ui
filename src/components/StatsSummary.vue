@@ -26,19 +26,21 @@ function onDetails(id: number) {
       <li v-for="it in items" :key="it.id" class="statItemSmall">
         <div class="statLeft">
           <div class="statNameSmall">{{ it.name }}</div>
-          <div class="statBarSmall">
-            <div
-              class="statFillSmall"
-              :style="{ width: it.percent + '%' }"
-              :class="{
-                warn: it.percent >= 80 && it.percent < 90,
-                danger: it.percent >= 90,
-              }"
-            ></div>
+          <div class="statBarRow">
+            <div class="statBarSmall">
+              <div
+                class="statFillSmall"
+                :style="{ width: it.percent + '%' }"
+                :class="{
+                  warn: it.percent >= 80 && it.percent < 90,
+                  danger: it.percent >= 90,
+                }"
+              ></div>
+            </div>
+            <span class="statPctSmall">{{ it.percent }}%</span>
           </div>
         </div>
         <div class="statRight">
-          <div class="statPctSmall">{{ it.percent }}%</div>
           <BaseButton type="button" class="detailsBtn" @click="onDetails(it.id)"
             >Детали</BaseButton
           >
@@ -87,28 +89,46 @@ function onDetails(id: number) {
 }
 .statItemSmall {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 6px;
 }
 .statLeft {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
 }
 .statNameSmall {
   font-weight: 500;
   font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  word-break: break-word;
+}
+.statBarRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 .statBarSmall {
+  flex: 1 1 auto;
   height: 6px;
   background: var(--surface-2);
   border-radius: 3px;
   overflow: hidden;
-  margin-top: 4px;
+  min-width: 0;
+}
+.statPctSmall {
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 28px;
+  text-align: right;
+  flex-shrink: 0;
 }
 .statFillSmall {
   height: 100%;
@@ -123,15 +143,9 @@ function onDetails(id: number) {
 }
 .statRight {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
+  justify-content: center;
   flex-shrink: 0;
-}
-.statPctSmall {
-  color: var(--muted);
-  font-size: 11px;
-  min-width: 32px;
-  text-align: right;
 }
 .detailsBtn {
   padding: 4px 6px;
