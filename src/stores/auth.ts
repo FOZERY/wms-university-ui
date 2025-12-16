@@ -1,31 +1,49 @@
-import { defineStore } from 'pinia';
-import type { MeResponse, UserRole } from '../shared/api/types';
+import { defineStore } from "pinia";
+import type { MeResponse, UserRole } from "../shared/api/types";
 
-type LoadState = 'idle' | 'loading' | 'loaded' | 'error';
+type LoadState = "idle" | "loading" | "loaded" | "error";
 
-const LS_KEY = 'wms.mock.role';
+const LS_KEY = "wms.mock.role";
 
 function buildMockMe(role: UserRole): MeResponse {
+  if (role === "manager") {
+    const firstname = "Иван";
+    const lastname = "Петров";
+    const middlename = "Иванович";
+    return {
+      id: "00000000-0000-0000-0000-000000000001",
+      login: `${firstname.toLowerCase()}.${lastname.toLowerCase()}`,
+      firstname,
+      lastname,
+      middlename,
+      role,
+    };
+  }
+
+  // storeKeeper
+  const firstname = "Пётр";
+  const lastname = "Сидоров";
+  const middlename = "Сергеевич";
   return {
-    id: role === 'manager' ? '00000000-0000-0000-0000-000000000001' : '00000000-0000-0000-0000-000000000002',
-    login: role === 'manager' ? 'manager' : 'storeKeeper',
-    firstname: role === 'manager' ? 'Иван' : 'Пётр',
-    lastname: role === 'manager' ? 'Менеджеров' : 'Кладовщиков',
-    middlename: undefined,
+    id: "00000000-0000-0000-0000-000000000002",
+    login: `${firstname.toLowerCase()}.${lastname.toLowerCase()}`,
+    firstname,
+    lastname,
+    middlename,
     role,
   };
 }
 
 function readRoleFromStorage(): UserRole | null {
   const raw = localStorage.getItem(LS_KEY);
-  if (raw === 'manager' || raw === 'storeKeeper') return raw;
+  if (raw === "manager" || raw === "storeKeeper") return raw;
   return null;
 }
 
-export const useAuthStore = defineStore('auth', {
+export const useAuthStore = defineStore("auth", {
   state: () => ({
     me: null as MeResponse | null,
-    state: 'idle' as LoadState,
+    state: "idle" as LoadState,
     error: null as string | null,
   }),
 
@@ -36,26 +54,26 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     async ensureMeLoaded(): Promise<void> {
-      if (this.state === 'loaded' || this.state === 'loading') return;
-      this.state = 'loading';
+      if (this.state === "loaded" || this.state === "loading") return;
+      this.state = "loading";
 
       const role = readRoleFromStorage();
       this.me = role ? buildMockMe(role) : null;
 
-      this.state = 'loaded';
+      this.state = "loaded";
     },
 
     selectRole(role: UserRole): void {
       localStorage.setItem(LS_KEY, role);
       this.me = buildMockMe(role);
-      this.state = 'loaded';
+      this.state = "loaded";
       this.error = null;
     },
 
     logout(): void {
       localStorage.removeItem(LS_KEY);
       this.me = null;
-      this.state = 'idle';
+      this.state = "idle";
       this.error = null;
     },
   },

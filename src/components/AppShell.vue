@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { getPermissions } from "../shared/auth/permissions";
+import { roleToLabel } from "../shared/auth/permissions";
 import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -20,6 +21,14 @@ const dragStartX = ref(0);
 const dragStartWidth = ref(DEFAULT_WIDTH);
 
 const permissions = computed(() => getPermissions(auth.role));
+const displayRole = computed(() => roleToLabel(auth.role));
+const displayName = computed(() => {
+  if (!auth.me) return "";
+  const fn = auth.me.firstname ?? "";
+  const ln = auth.me.lastname ?? "";
+  if (fn || ln) return `${fn} ${ln}`.trim();
+  return auth.me.login ?? "";
+});
 
 async function onLogout() {
   auth.logout();
@@ -32,7 +41,10 @@ function toggleSidebar(force?: boolean) {
     collapsed.value = true;
   } else {
     collapsed.value = false;
-    sidebarWidth.value = Math.min(Math.max(lastExpandedWidth.value, MIN_WIDTH), MAX_WIDTH);
+    sidebarWidth.value = Math.min(
+      Math.max(lastExpandedWidth.value, MIN_WIDTH),
+      MAX_WIDTH
+    );
   }
 }
 
@@ -48,7 +60,10 @@ function onDragStart(event: PointerEvent) {
 function onDragMove(event: PointerEvent) {
   if (!isDragging.value) return;
   const delta = event.clientX - dragStartX.value;
-  const nextWidth = Math.min(Math.max(dragStartWidth.value + delta, MIN_WIDTH), MAX_WIDTH);
+  const nextWidth = Math.min(
+    Math.max(dragStartWidth.value + delta, MIN_WIDTH),
+    MAX_WIDTH
+  );
 
   if (nextWidth < COLLAPSE_THRESHOLD) {
     lastExpandedWidth.value = Math.max(MIN_WIDTH, dragStartWidth.value);
@@ -80,12 +95,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="shell" :class="{ isDragging }" :style="{ '--sidebar-width': (collapsed ? 0 : sidebarWidth) + 'px' }">
+  <div
+    class="shell"
+    :class="{ isDragging }"
+    :style="{ '--sidebar-width': (collapsed ? 0 : sidebarWidth) + 'px' }"
+  >
     <aside class="sidebar" :class="{ collapsed }">
-      <div class="brand">
+      <RouterLink to="/" class="brand">
         <div class="brandTitle">WMS</div>
         <div class="brandSub muted">Тракторный завод</div>
-      </div>
+      </RouterLink>
 
       <nav class="nav">
         <RouterLink class="link" to="/documents">Документы</RouterLink>
@@ -98,8 +117,8 @@ onBeforeUnmount(() => {
 
       <div class="sidebarFooter">
         <div v-if="auth.me" class="me">
-          <div class="meName">{{ auth.me.login }}</div>
-          <div class="meRole muted">{{ auth.me.role }}</div>
+          <div class="meName">{{ displayName }}</div>
+          <div class="meRole muted">{{ displayRole }}</div>
         </div>
         <button type="button" class="btn" @click="onLogout">Выйти</button>
       </div>
@@ -108,13 +127,34 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="topbar">
-      <button class="ghostIcon" type="button" @click="toggleSidebar()" title="Переключить меню">
-        <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button
+        class="ghostIcon"
+        type="button"
+        @click="toggleSidebar()"
+        title="Переключить меню"
+      >
+        <svg
+          v-if="collapsed"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <line x1="3" y1="6" x2="21" y2="6"></line>
           <line x1="3" y1="12" x2="21" y2="12"></line>
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
-        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          v-else
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <polyline points="11 17 6 12 11 7"></polyline>
           <polyline points="18 17 13 12 18 7"></polyline>
         </svg>
@@ -174,6 +214,12 @@ onBeforeUnmount(() => {
   font-size: 12px;
 }
 
+.brand {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
@@ -228,7 +274,12 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 100%;
   cursor: col-resize;
-  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--border) 60%, transparent) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--border) 60%, transparent) 50%,
+    transparent 100%
+  );
 }
 
 .sidebar.collapsed {
