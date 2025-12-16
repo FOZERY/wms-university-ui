@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { ref, onMounted, onUnmounted, useSlots } from "vue";
+import { ref, onMounted, onUnmounted, useSlots, computed } from "vue";
 
 interface Column<T> {
   key: keyof T;
@@ -9,6 +9,7 @@ interface Column<T> {
   options?: Array<{ value: any; label: string }>;
   format?: (value: any) => string;
   width?: string;
+  sortable?: boolean;
 }
 
 interface Props {
@@ -24,6 +25,75 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+
+type SortDirection = "asc" | "desc";
+type SortRule = {
+  field: keyof T;
+  direction: SortDirection;
+};
+
+const sortRules = ref<SortRule[]>([]);
+
+function toggleSort(field: keyof T, shiftKey: boolean) {
+  const existingIndex = sortRules.value.findIndex((r) => r.field === field);
+
+  if (!shiftKey) {
+    // Обычный клик - сортировка только по одному полю
+    if (existingIndex !== -1) {
+      const currentDirection = sortRules.value[existingIndex].direction;
+      if (currentDirection === "asc") {
+        sortRules.value = [{ field, direction: "desc" }];
+      } else {
+        sortRules.value = [];
+      }
+    } else {
+      sortRules.value = [{ field, direction: "asc" }];
+    }
+  } else {
+    // Shift+клик - множественная сортировка
+    if (existingIndex !== -1) {
+      const currentDirection = sortRules.value[existingIndex].direction;
+      if (currentDirection === "asc") {
+        sortRules.value[existingIndex].direction = "desc";
+      } else {
+        sortRules.value.splice(existingIndex, 1);
+      }
+    } else {
+      sortRules.value.push({ field, direction: "asc" });
+    }
+  }
+}
+
+function getSortState(
+  field: keyof T
+): { direction: SortDirection; order: number } | null {
+  const index = sortRules.value.findIndex((r) => r.field === field);
+  if (index === -1) return null;
+  return {
+    direction: sortRules.value[index].direction,
+    order: index + 1,
+  };
+}
+
+const sortedData = computed(() => {
+  if (sortRules.value.length === 0) return props.data;
+
+  return [...props.data].sort((a, b) => {
+    for (const rule of sortRules.value) {
+      const aVal = a[rule.field];
+      const bVal = b[rule.field];
+
+      let comparison = 0;
+      if (aVal < bVal) comparison = -1;
+      else if (aVal > bVal) comparison = 1;
+
+      if (comparison !== 0) {
+        return rule.direction === "asc" ? comparison : -comparison;
+      }
+    }
+    return 0;
+  });
+});
 
 type EditingCell = {
   itemId: any;
@@ -103,14 +173,33 @@ onUnmounted(() => {
           v-for="col in columns"
           :key="String(col.key)"
           :style="col.width ? { width: col.width } : undefined"
+          :class="{ sortable: col.sortable !== false }"
+          @click="
+            col.sortable !== false
+              ? toggleSort(col.key, $event.shiftKey)
+              : undefined
+          "
         >
-          {{ col.label }}
+          <div class="thContent">
+            <span>{{ col.label }}</span>
+            <span v-if="col.sortable !== false" class="sortIndicator">
+              <template v-if="getSortState(col.key)">
+                <span class="sortArrow">{{
+                  getSortState(col.key)!.direction === "asc" ? "↑" : "↓"
+                }}</span>
+                <span v-if="sortRules.length > 1" class="sortOrder">{{
+                  getSortState(col.key)!.order
+                }}</span>
+              </template>
+              <span v-else class="sortArrow inactive">⇅</span>
+            </span>
+          </div>
         </th>
         <th v-if="slots.actions"></th>
       </tr>
     </thead>
     <tbody>
-      <tr v-for="item in data" :key="item[rowKey]">
+      <tr v-for="item in sortedData" :key="item[rowKey]">
         <td
           v-for="col in columns"
           :key="String(col.key)"
@@ -203,5 +292,51 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+}
+
+.table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.table thead th.sortable:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, AccentColor 20%);
+}
+
+.thContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sortIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.sortArrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.sortArrow.inactive {
+  opacity: 0.3;
+  font-size: 12px;
+}
+
+.sortOrder {
+  font-size: 10px;
+  background: AccentColor;
+  color: white;
+  border-radius: 3px;
+  padding: 1px 3px;
+  min-width: 12px;
+  text-align: center;
+  font-weight: 600;
 }
 </style>
