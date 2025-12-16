@@ -112,14 +112,13 @@ onBeforeUnmount(() => {
         <RouterLink class="link" to="/nomenclature">Номенклатура</RouterLink>
         <RouterLink class="link" to="/warehouses">Склады</RouterLink>
         <RouterLink class="link" to="/suppliers">Поставщики</RouterLink>
-        <RouterLink class="link" to="/profile">Профиль</RouterLink>
       </nav>
 
       <div class="sidebarFooter">
-        <div v-if="auth.me" class="me">
+        <RouterLink v-if="auth.me" to="/profile" class="me">
           <div class="meName">{{ displayName }}</div>
           <div class="meRole muted">{{ displayRole }}</div>
-        </div>
+        </RouterLink>
         <button type="button" class="btn" @click="onLogout">Выйти</button>
       </div>
 
@@ -244,6 +243,19 @@ onBeforeUnmount(() => {
   gap: var(--space-2);
   padding-top: var(--space-2);
   border-top: 1px solid var(--border);
+}
+
+.me {
+  text-decoration: none;
+  color: inherit;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.me:hover {
+  background: color-mix(in srgb, CanvasText 5%, transparent);
 }
 
 .meName {
