@@ -65,24 +65,36 @@ defineExpose({ getCanvas });
 
 <style scoped>
 .chartCardWrapper {
-  padding: 12px;
+  box-sizing: border-box;
+  padding: calc(10px * var(--chart-card-scale, 1));
   /* allow dropdowns to overflow the card bounds */
   overflow: visible;
+
+  /* sizing variables (override from parent or page if needed) */
+  --chart-card-max-width: 320px;
+  --chart-card-chart-height: 240px;
+  --chart-card-scale: 1;
+
+  width: 100%;
+  max-width: var(--chart-card-max-width);
+
+  /* base font-size that children can inherit and scale */
+  font-size: calc(13px * var(--chart-card-scale));
 }
 .chartHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: calc(10px * var(--chart-card-scale));
+  margin-bottom: calc(8px * var(--chart-card-scale));
 }
 .chartHeader .title {
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(15px * var(--chart-card-scale));
 }
 .chartBody {
   display: flex;
-  gap: 12px;
+  gap: calc(10px * var(--chart-card-scale));
   align-items: flex-start;
 }
 .chartPane {
@@ -90,25 +102,63 @@ defineExpose({ getCanvas });
   min-width: 0;
 }
 .controlsSpacer {
-  margin-top: 12px;
+  margin-top: calc(10px * var(--chart-card-scale));
 }
 .chartContainerSmall {
-  height: 320px;
+  height: var(--chart-card-chart-height);
   width: 100%;
 }
 .chartContainerSmall canvas {
   width: 100% !important;
-  height: 320px !important;
+  height: var(--chart-card-chart-height) !important;
   display: block;
 }
 .cardControls {
-  margin-top: 10px;
+  margin-top: calc(8px * var(--chart-card-scale));
   display: flex;
-  gap: 8px;
+  gap: calc(8px * var(--chart-card-scale));
   flex-wrap: wrap;
 }
+/* attempt to scale simple controls placed into the slot */
+.cardControls > * {
+  font-size: calc(13px * var(--chart-card-scale));
+  padding: calc(7px * var(--chart-card-scale))
+    calc(10px * var(--chart-card-scale));
+  border-radius: calc(8px * var(--chart-card-scale));
+}
 .summaryPane {
-  flex: 0 0 240px;
-  min-width: 240px;
+  flex: 0 0 calc(160px * var(--chart-card-scale));
+  min-width: calc(160px * var(--chart-card-scale));
+}
+
+/* Responsive tweaks and scale adjustments */
+@media (max-width: 800px) {
+  .chartCardWrapper {
+    --chart-card-max-width: 300px;
+    --chart-card-chart-height: 220px;
+    --chart-card-scale: 0.95;
+  }
+  .summaryPane {
+    flex: 0 0 calc(150px * var(--chart-card-scale));
+    min-width: calc(150px * var(--chart-card-scale));
+  }
+}
+
+@media (max-width: 640px) {
+  /* stack summary under the chart on small screens and reduce height */
+  .chartBody {
+    flex-direction: column;
+    gap: calc(10px * var(--chart-card-scale));
+  }
+  .summaryPane {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+  }
+  .chartCardWrapper {
+    --chart-card-max-width: 100%;
+    --chart-card-chart-height: 220px;
+    --chart-card-scale: 0.92;
+  }
 }
 </style>

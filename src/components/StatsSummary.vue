@@ -30,7 +30,10 @@ function onDetails(id: number) {
             <div
               class="statFillSmall"
               :style="{ width: it.percent + '%' }"
-              :class="{ warn: it.percent > 80, danger: it.percent > 95 }"
+              :class="{
+                warn: it.percent >= 80 && it.percent < 90,
+                danger: it.percent >= 90,
+              }"
             ></div>
           </div>
         </div>
@@ -47,20 +50,20 @@ function onDetails(id: number) {
 
 <style scoped>
 .statsSummary {
-  font-size: 13px;
+  font-size: 12px;
 }
 .legendRow {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 .dot {
   width: 12px;
@@ -80,30 +83,32 @@ function onDetails(id: number) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .statItemSmall {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 .statLeft {
   flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 .statNameSmall {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .statBarSmall {
-  height: 8px;
+  height: 6px;
   background: var(--surface-2);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .statFillSmall {
   height: 100%;
@@ -119,16 +124,19 @@ function onDetails(id: number) {
 .statRight {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .statPctSmall {
   color: var(--muted);
-  font-size: 13px;
-  min-width: 36px;
+  font-size: 11px;
+  min-width: 32px;
   text-align: right;
 }
 .detailsBtn {
-  padding: 6px 8px;
-  height: 32px;
+  padding: 4px 6px;
+  height: 26px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 </style>

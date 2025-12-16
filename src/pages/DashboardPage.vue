@@ -59,7 +59,7 @@ const chartOptions = {
       stacked: true,
       ticks: {
         display: true,
-        font: { size: 10 },
+        font: { size: 8 },
         maxRotation: 0,
         minRotation: 0,
       },
@@ -239,7 +239,7 @@ async function exportXLSX() {
 }
 .exportMenu {
   position: absolute;
-  top: 44px;
+  top: calc(100% + 3px);
   left: 0;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -265,6 +265,6 @@ async function exportXLSX() {
 }
 .exportMenu.above {
   top: auto;
-  bottom: 44px;
+  bottom: calc(100% + 3px);
 }
 </style>
