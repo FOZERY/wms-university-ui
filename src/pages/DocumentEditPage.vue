@@ -6,9 +6,18 @@ import BaseButton from "../components/BaseButton.vue";
 const route = useRoute();
 const router = useRouter();
 const isNew = route.path.includes("/new");
-const documentId = route.params.id as string;
 
-const form = ref({
+type DocForm = {
+	type: string;
+	date?: string;
+	warehouseFromId: number | null;
+	warehouseToId: number | null;
+	supplierId: number | null;
+	comment: string;
+	items: any[];
+};
+
+const form = ref<DocForm>({
 	type: "incoming",
 	date: new Date().toISOString().split("T")[0],
 	warehouseFromId: null,
@@ -94,10 +103,7 @@ const removeItem = (index: number) => {
 						</select>
 					</div>
 
-					<div
-						class="formGroup"
-						v-if="['transfer', 'production'].includes(form.type)"
-					>
+					<div class="formGroup" v-if="['transfer', 'production'].includes(form.type)">
 						<label>Склад отправитель (Списание)</label>
 						<select v-model="form.warehouseFromId">
 							<option :value="1">Основной склад</option>
@@ -105,14 +111,11 @@ const removeItem = (index: number) => {
 						</select>
 					</div>
 
-					<div
-						class="formGroup"
-						v-if="
-							['incoming', 'transfer', 'production'].includes(
-								form.type
-							)
-						"
-					>
+					<div class="formGroup" v-if="
+						['incoming', 'transfer', 'production'].includes(
+							form.type
+						)
+					">
 						<label>Склад получатель (Приход)</label>
 						<select v-model="form.warehouseToId">
 							<option :value="1">Основной склад</option>
@@ -130,12 +133,7 @@ const removeItem = (index: number) => {
 			<div class="card">
 				<div class="cardHeader">
 					<h3>Позиции</h3>
-					<BaseButton
-						type="button"
-						variant="secondary"
-						@click="addItem"
-						>+ Добавить строку</BaseButton
-					>
+					<BaseButton type="button" variant="secondary" @click="addItem">+ Добавить строку</BaseButton>
 				</div>
 
 				<table class="table">
@@ -157,20 +155,11 @@ const removeItem = (index: number) => {
 								</select>
 							</td>
 							<td>
-								<input
-									type="number"
-									v-model="item.quantity"
-									min="0.001"
-									step="0.001"
-								/>
+								<input type="number" v-model="item.quantity" min="0.001" step="0.001" />
 							</td>
 							<td>{{ item.unit || "шт" }}</td>
 							<td>
-								<button
-									type="button"
-									class="btnDelete"
-									@click="removeItem(index)"
-								>
+								<button type="button" class="btnDelete" @click="removeItem(index)">
 									✕
 								</button>
 							</td>
@@ -185,12 +174,8 @@ const removeItem = (index: number) => {
 			</div>
 
 			<div class="actions">
-				<BaseButton type="button" variant="secondary" @click="cancel"
-					>Отмена</BaseButton
-				>
-				<BaseButton type="submit" variant="primary"
-					>Сохранить</BaseButton
-				>
+				<BaseButton type="button" variant="secondary" @click="cancel">Отмена</BaseButton>
+				<BaseButton type="submit" variant="primary">Сохранить</BaseButton>
 			</div>
 		</form>
 	</div>

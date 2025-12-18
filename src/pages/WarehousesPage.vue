@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import EditableTable from "../components/EditableTable.vue";
+import useDebounce from "../composables/useDebounce";
 import type { Warehouse } from "../shared/api/types";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockWarehouses } from "../shared/mocks/data";
@@ -20,37 +21,55 @@ const columns = computed(() => [
 	},
 ]);
 
-function handleUpdate(item: Warehouse, field: keyof Warehouse, newValue: any) {
+function handleUpdate(item: any, field: keyof Warehouse, newValue: any) {
 	const itemIndex = mockWarehouses.findIndex((w) => w.id === item.id);
 	if (itemIndex !== -1) {
 		(mockWarehouses[itemIndex] as any)[field] = newValue;
 	}
 	console.log("Сохранено:", { warehouseId: item.id, field, newValue });
 }
+const searchQuery = ref("");
+const debouncedSearch = useDebounce(searchQuery, 250);
+function clearSearch() {
+	searchQuery.value = "";
+	try {
+		debouncedSearch.value = "";
+	} catch { }
+}
+
+const displayedWarehouses = computed(() => {
+	const q = debouncedSearch.value.trim().toLowerCase();
+	if (!q) return mockWarehouses;
+	return mockWarehouses.filter((w) => {
+		return (
+			String(w.name || "")
+				.toLowerCase()
+				.includes(q) ||
+			String(w.address || "")
+				.toLowerCase()
+				.includes(q)
+		);
+	});
+});
 </script>
 
 <template>
 	<div>
 		<div class="pageHeader">
 			<h1>Склады</h1>
+			<div class="searchWrap">
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию или адресу..." />
+				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
+			</div>
 			<div class="actions">
-				<button
-					v-if="permissions.canEditNomenclature"
-					class="btn btnPrimary"
-					type="button"
-				>
+				<button v-if="permissions.canEditNomenclature" class="btn btnPrimary" type="button">
 					Создать склад
 				</button>
 			</div>
 		</div>
 
-		<EditableTable
-			:columns="columns"
-			:data="mockWarehouses"
-			row-key="id"
-			:can-edit="permissions.canEditNomenclature"
-			@update="handleUpdate"
-		>
+		<EditableTable :columns="columns" :data="displayedWarehouses" row-key="id"
+			:can-edit="permissions.canEditNomenclature" @update="handleUpdate">
 			<template #cell-name="{ item }">
 				<router-link :to="`/warehouses/${item.id}`" class="link">{{
 					item.name
@@ -66,24 +85,10 @@ function handleUpdate(item: Warehouse, field: keyof Warehouse, newValue: any) {
 	text-decoration: none;
 	font-weight: 500;
 }
+
 .link:hover {
 	text-decoration: underline;
 }
-.pageHeader {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: var(--space-4);
-}
-.btnPrimary {
-	padding: 6px 12px;
-	background: #646cff;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-}
-.btnPrimary:hover {
-	background: #535bf2;
-}
+
+/* header/actions/buttons use global styles in `src/style.css` */
 </style>

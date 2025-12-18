@@ -43,9 +43,7 @@ const goBack = () => router.back();
 				<h1>Документ {{ document?.number }}</h1>
 			</div>
 			<div class="actions" v-if="document">
-				<BaseButton v-if="document.status === 'draft'" variant="primary"
-					>Редактировать</BaseButton
-				>
+				<BaseButton v-if="document.status === 'draft'" variant="primary">Редактировать</BaseButton>
 				<BaseButton variant="secondary">Печать</BaseButton>
 			</div>
 		</div>
@@ -76,19 +74,13 @@ const goBack = () => router.back();
 					</div>
 					<div class="infoItem" v-if="document.supplier">
 						<span class="label">Поставщик:</span>
-						<router-link
-							:to="`/suppliers/${document.supplier.id}`"
-							class="link"
-							>{{ document.supplier.name }}</router-link
-						>
+						<router-link :to="`/suppliers/${document.supplier.id}`" class="link">{{ document.supplier.name
+						}}</router-link>
 					</div>
 					<div class="infoItem" v-if="document.warehouseTo">
 						<span class="label">На склад:</span>
-						<router-link
-							:to="`/warehouses/${document.warehouseTo.id}`"
-							class="link"
-							>{{ document.warehouseTo.name }}</router-link
-						>
+						<router-link :to="`/warehouses/${document.warehouseTo.id}`" class="link">{{ document.warehouseTo.name
+						}}</router-link>
 					</div>
 				</div>
 			</div>
@@ -107,17 +99,10 @@ const goBack = () => router.back();
 						</tr>
 					</thead>
 					<tbody>
-						<tr
-							v-for="(item, index) in document.items"
-							:key="item.id"
-						>
+						<tr v-for="(item, index) in document.items" :key="item.id">
 							<td>{{ index + 1 }}</td>
 							<td>
-								<router-link
-									:to="`/items/${item.id}`"
-									class="link"
-									>{{ item.name }}</router-link
-								>
+								<router-link :to="`/items/${item.id}`" class="link">{{ item.name }}</router-link>
 							</td>
 							<td>{{ item.quantity }}</td>
 							<td>{{ item.unit }}</td>
@@ -204,9 +189,11 @@ const goBack = () => router.back();
 .status.draft {
 	color: #fbbf24;
 }
+
 .status.completed {
 	color: #34d399;
 }
+
 .status.cancelled {
 	color: #f87171;
 }

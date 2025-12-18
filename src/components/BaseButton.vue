@@ -1,31 +1,25 @@
 <script setup lang="ts">
-import { defineProps, withDefaults } from "vue";
-
 const props = withDefaults(
-	defineProps<{
-		type?: "button" | "submit" | "reset";
-		variant?: "default" | "primary" | "danger";
-		onClick?: (e: MouseEvent) => void;
-	}>(),
-	{
-		type: "button",
-		variant: "default",
-	},
+  defineProps<{
+    type?: "button" | "submit" | "reset";
+    variant?: "default" | "primary" | "danger" | "secondary";
+    onClick?: (e: MouseEvent) => void;
+  }>(),
+  {
+    type: "button",
+    variant: "default",
+  }
 );
 </script>
 
 <template>
-  <button
-    :type="props.type"
-    :class="[
-      'btn',
-      {
-        btnPrimary: props.variant === 'primary',
-        btnDanger: props.variant === 'danger',
-      },
-    ]"
-    @click="props.onClick && props.onClick($event)"
-  >
+  <button :type="props.type" :class="[
+    'btn',
+    {
+      btnPrimary: props.variant === 'primary',
+      btnDanger: props.variant === 'danger',
+    },
+  ]" @click="props.onClick && props.onClick($event)">
     <slot />
   </button>
 </template>

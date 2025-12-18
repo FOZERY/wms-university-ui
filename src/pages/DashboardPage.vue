@@ -56,7 +56,7 @@ const chartOptions = {
 		tooltip: {
 			enabled: true,
 			callbacks: {
-				title: (items) => {
+				title: (items: any) => {
 					// Показываем полное название склада в tooltip
 					if (items && items.length > 0) {
 						return items[0].label;
@@ -74,11 +74,9 @@ const chartOptions = {
 				font: { size: 8 },
 				maxRotation: 0,
 				minRotation: 0,
-				callback: function (value, index, ticks) {
+				callback: function (this: any, value: any) {
 					// Сокращаем длинные подписи, но показываем tooltip
-					const label = this.getLabelForValue
-						? this.getLabelForValue(value)
-						: value;
+					const label = (this.getLabelForValue ? this.getLabelForValue(value) : value) as any;
 					if (typeof label === "string" && label.length > 10) {
 						return label.slice(0, 10) + "…";
 					}
@@ -191,102 +189,88 @@ async function exportXLSX() {
 </script>
 
 <template>
-  <div>
-    <div class="pageHeader">
-      <div class="headerLeft">
-        <h2 class="muted">Обзор</h2>
-      </div>
-    </div>
+	<div>
+		<div class="pageHeader">
+			<div class="headerLeft">
+				<h2 class="muted">Обзор</h2>
+			</div>
+		</div>
 
-    <div class="chartsGrid">
-      <ChartCard
-        ref="chartCardRef"
-        :chartData="chartData"
-        :chartOptions="chartOptions"
-        title="Загруженность складов"
-      >
-        <template #summary>
-          <StatsSummary :items="utilization" />
-        </template>
-        <template #controls>
-          <div class="exportWrapper" ref="exportWrapperRef">
-            <BaseButton variant="default" @click="toggleExportMenu">
-              Экспортировать
-              <svg
-                style="margin-left: 8px"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M6 9l6 6 6-6"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </BaseButton>
-            <div
-              v-if="exportMenuOpen"
-              :class="['exportMenu', { above: exportMenuAbove }]"
-              ref="exportMenuRef"
-            >
-              <button class="menuItem" @click.prevent="exportCSV">CSV</button>
-              <button class="menuItem" @click.prevent="exportPNG">PNG</button>
-              <button class="menuItem" @click.prevent="exportXLSX">XLSX</button>
-            </div>
-          </div>
-        </template>
-      </ChartCard>
-    </div>
-  </div>
+		<div class="chartsGrid">
+			<ChartCard ref="chartCardRef" :chartData="chartData" :chartOptions="chartOptions" title="Загруженность складов">
+				<template #summary>
+					<StatsSummary :items="utilization" />
+				</template>
+				<template #controls>
+					<div class="exportWrapper" ref="exportWrapperRef">
+						<BaseButton variant="default" @click="toggleExportMenu">
+							Экспортировать
+							<svg style="margin-left: 8px" width="12" height="12" viewBox="0 0 24 24" fill="none"
+								xmlns="http://www.w3.org/2000/svg">
+								<path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+									stroke-linejoin="round" />
+							</svg>
+						</BaseButton>
+						<div v-if="exportMenuOpen" :class="['exportMenu', { above: exportMenuAbove }]" ref="exportMenuRef">
+							<button class="menuItem" @click.prevent="exportCSV">CSV</button>
+							<button class="menuItem" @click.prevent="exportPNG">PNG</button>
+							<button class="menuItem" @click.prevent="exportXLSX">XLSX</button>
+						</div>
+					</div>
+				</template>
+			</ChartCard>
+		</div>
+	</div>
 </template>
 
 <style scoped>
 .chartsGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  max-width: 500px;
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+	max-width: 500px;
 }
+
 .exportArea {
-  margin-top: 12px;
-  display: flex;
+	margin-top: 12px;
+	display: flex;
 }
+
 .exportWrapper {
-  position: relative;
+	position: relative;
 }
+
 .exportMenu {
-  position: absolute;
-  top: calc(100% + 3px);
-  left: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 6px;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 100%;
+	position: absolute;
+	top: calc(100% + 3px);
+	left: 0;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	padding: 6px;
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+	z-index: 60;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 100%;
 }
+
 .exportMenu .menuItem {
-  background: transparent;
-  border: none;
-  padding: 6px 12px;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 6px;
+	background: transparent;
+	border: none;
+	padding: 6px 12px;
+	text-align: left;
+	cursor: pointer;
+	border-radius: 6px;
 }
+
 .exportMenu .menuItem:hover {
-  background: var(--surface-2);
+	background: var(--surface-2);
 }
+
 .exportMenu.above {
-  top: auto;
-  bottom: calc(100% + 3px);
+	top: auto;
+	bottom: calc(100% + 3px);
 }
 </style>

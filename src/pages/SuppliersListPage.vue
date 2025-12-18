@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import EditableTable from "../components/EditableTable.vue";
+import useDebounce from "../composables/useDebounce";
 import type { Supplier } from "../shared/api/types";
-import { getPermissions } from "../shared/auth/permissions";
 import { mockSuppliers } from "../shared/mocks/data";
-import { useAuthStore } from "../stores/auth";
-
-const auth = useAuthStore();
-const permissions = computed(() => getPermissions(auth.role));
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const suppliers = ref<Supplier[]>([]);
+const searchQuery = ref("");
+const debouncedSearch = useDebounce(searchQuery, 250);
+
+function clearSearch() {
+	searchQuery.value = "";
+	try {
+		debouncedSearch.value = "";
+	} catch { }
+}
 
 const columns = computed(() => [
 	{ key: "id" as keyof Supplier, label: "ID", width: "60px" },
@@ -49,13 +54,28 @@ async function load() {
 	}
 }
 
-function handleUpdate(item: Supplier, field: keyof Supplier, newValue: any) {
-	const itemIndex = suppliers.value.findIndex((s) => s.id === item.id);
-	if (itemIndex !== -1) {
-		(suppliers.value[itemIndex] as any)[field] = newValue;
-	}
-	console.log("Сохранено:", { supplierId: item.id, field, newValue });
-}
+const displayedSuppliers = computed(() => {
+	const q = debouncedSearch.value.trim().toLowerCase();
+	if (!q) return suppliers.value;
+	return suppliers.value.filter((s) => {
+		return (
+			String(s.name || "")
+				.toLowerCase()
+				.includes(q) ||
+			String(s.inn || "")
+				.toLowerCase()
+				.includes(q) ||
+			String(s.email || "")
+				.toLowerCase()
+				.includes(q) ||
+			String(s.phone || "")
+				.toLowerCase()
+				.includes(q)
+		);
+	});
+});
+
+// no update handler required for suppliers list at the moment
 
 onMounted(load);
 </script>
@@ -64,6 +84,10 @@ onMounted(load);
 	<div>
 		<div class="pageHeader">
 			<h1>Поставщики</h1>
+			<div class="searchWrap">
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию, ИНН, email или телефону..." />
+				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
+			</div>
 			<div class="actions">
 				<button class="btn" type="button" @click="load">
 					Обновить
@@ -74,13 +98,7 @@ onMounted(load);
 		<p v-if="isLoading">Загрузка…</p>
 		<p v-else-if="error">{{ error }}</p>
 
-		<EditableTable
-			v-else
-			:columns="columns"
-			:data="suppliers"
-			row-key="id"
-			:can-edit="false"
-		>
+		<EditableTable v-else :columns="columns" :data="displayedSuppliers" row-key="id" :can-edit="false">
 			<template #cell-name="{ item }">
 				<router-link :to="`/suppliers/${item.id}`" class="link">{{
 					item.name
@@ -96,29 +114,10 @@ onMounted(load);
 	text-decoration: none;
 	font-weight: 500;
 }
+
 .link:hover {
 	text-decoration: underline;
 }
-.pageHeader {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: var(--space-4);
-}
-.actions {
-	display: flex;
-	gap: var(--space-3);
-	align-items: center;
-}
-.btn {
-	padding: 4px 8px;
-	border: 1px solid var(--border);
-	background: var(--surface);
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--text);
-}
-.btn:hover {
-	background: var(--surface-2);
-}
+
+/* header/actions/buttons use global styles in `src/style.css` */
 </style>

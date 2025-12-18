@@ -47,3 +47,54 @@ export interface LoginRequest {
 	login: string;
 	password: string;
 }
+
+// Documents
+export type DocumentType = "incoming" | "transfer" | "production";
+export type DocumentStatus = "draft" | "completed" | "cancelled";
+
+export interface DocumentListItem {
+	id: number;
+	number: string;
+	type: DocumentType;
+	status: DocumentStatus;
+	date: string;
+	warehouseFromId?: number | null;
+	warehouseToId?: number | null;
+	supplierId?: number | null;
+}
+
+export interface DocumentItem {
+	id?: number;
+	itemId: number;
+	quantity: string;
+	direction?: "in" | "out";
+}
+
+export interface DocumentDetail extends DocumentListItem {
+	userId: string;
+	comment?: string;
+	items: DocumentItem[];
+}
+
+export interface CreateDocumentRequest {
+	type: DocumentType;
+	date?: string;
+	warehouseFromId?: number | null;
+	warehouseToId?: number | null;
+	supplierId?: number | null;
+	comment?: string;
+	items: Array<{
+		itemId: number;
+		quantity: string;
+		direction?: "in" | "out";
+	}>;
+}
+
+// Stock
+export interface StockBalance {
+	itemId: number;
+	warehouseId: number;
+	quantity: string;
+	reserved: string;
+	available: string;
+}

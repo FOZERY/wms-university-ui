@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import EditableTable from "../components/EditableTable.vue";
+import useDebounce from "../composables/useDebounce";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockStock } from "../shared/mocks/data";
 import { useAuthStore } from "../stores/auth";
@@ -10,6 +11,15 @@ const permissions = computed(() => getPermissions(auth.role));
 
 type WarehouseFilter = "all" | "materials" | "products";
 const warehouseFilter = ref<WarehouseFilter>("all");
+const searchQuery = ref("");
+const debouncedSearch = useDebounce(searchQuery, 250);
+
+function clearSearch() {
+	searchQuery.value = "";
+	try {
+		debouncedSearch.value = "";
+	} catch { }
+}
 
 interface StockRow {
 	warehouseId: number;
@@ -36,6 +46,21 @@ const filteredStock = computed(() => {
 	return mockStock.filter((r) => !r.warehouseName.includes("Готов"));
 });
 
+const displayedStock = computed(() => {
+	const q = debouncedSearch.value.trim().toLowerCase();
+	if (!q) return filteredStock.value;
+	return filteredStock.value.filter((r) => {
+		return (
+			String(r.itemName || "")
+				.toLowerCase()
+				.includes(q) ||
+			String(r.warehouseName || "")
+				.toLowerCase()
+				.includes(q)
+		);
+	});
+});
+
 const columns = computed(() => [
 	{
 		key: "warehouseName" as keyof StockRow,
@@ -51,7 +76,7 @@ const columns = computed(() => [
 
 function handleUpdate(item: StockRow, field: keyof StockRow, newValue: any) {
 	const itemIndex = mockStock.findIndex(
-		(s) => s.warehouseId === item.warehouseId && s.itemId === item.itemId,
+		(s) => s.warehouseId === item.warehouseId && s.itemId === item.itemId
 	);
 	if (itemIndex !== -1) {
 		(mockStock[itemIndex] as any)[field] = newValue;
@@ -66,34 +91,34 @@ function handleUpdate(item: StockRow, field: keyof StockRow, newValue: any) {
 </script>
 
 <template>
-  <div>
-    <div class="pageHeader">
-      <h1>Остатки</h1>
-      <div class="actions">
-        <label class="muted">
-          Склад:&nbsp;
-          <select v-model="warehouseFilter" class="select">
-            <option value="all">Все</option>
-            <option value="materials">Склад материалов</option>
-            <option value="products">Склад готовой продукции</option>
-          </select>
-        </label>
-        <button
-          v-if="permissions.canAdjustStock"
-          class="btn btnPrimary"
-          type="button"
-        >
-          Корректировка
-        </button>
-      </div>
-    </div>
+	<div>
+		<div class="pageHeader">
+			<h1>Остатки</h1>
+			<div class="searchWrap">
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по товару или складу..." />
+				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
+			</div>
+			<div class="actions">
+				<label class="muted">
+					Склад:&nbsp;
+					<select v-model="warehouseFilter" class="select">
+						<option value="all">Все</option>
+						<option value="materials">Склад материалов</option>
+						<option value="products">
+							Склад готовой продукции
+						</option>
+					</select>
+				</label>
+				<button v-if="permissions.canAdjustStock" class="btn btnPrimary" type="button">
+					Корректировка
+				</button>
+			</div>
+		</div>
 
-    <EditableTable
-      :columns="columns"
-      :data="filteredStock"
-      row-key="itemId"
-      :can-edit="true"
-      @update="handleUpdate"
-    />
-  </div>
+		<EditableTable :columns="columns" :data="displayedStock" row-key="itemId" :can-edit="true" @update="handleUpdate" />
+	</div>
 </template>
+
+<style scoped>
+/* searchInput uses shared style in src/style.css */
+</style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import EditableTable from "../components/EditableTable.vue";
+import useDebounce from "../composables/useDebounce";
 import type { Item } from "../shared/api/types";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockItems } from "../shared/mocks/data";
@@ -15,7 +16,15 @@ const items = ref<Item[]>([]);
 
 type TypeFilter = "all" | Item["type"];
 const typeFilter = ref<TypeFilter>("all");
+const searchQuery = ref("");
+const debouncedSearch = useDebounce(searchQuery, 250);
 
+function clearSearch() {
+	searchQuery.value = "";
+	try {
+		debouncedSearch.value = "";
+	} catch { }
+}
 function mapItemTypeToRu(type: Item["type"]): string {
 	return type === "material" ? "Материал" : "Готовая продукция";
 }
@@ -23,6 +32,19 @@ function mapItemTypeToRu(type: Item["type"]): string {
 const filteredItems = computed(() => {
 	if (typeFilter.value === "all") return items.value;
 	return items.value.filter((it) => it.type === typeFilter.value);
+});
+
+const displayedItems = computed(() => {
+	const q = debouncedSearch.value.trim().toLowerCase();
+	if (!q) return filteredItems.value;
+	return filteredItems.value.filter((it) => {
+		return (
+			String(it.name).toLowerCase().includes(q) ||
+			String(it.code || "")
+				.toLowerCase()
+				.includes(q)
+		);
+	});
 });
 
 const columns = computed(() => [
@@ -72,6 +94,10 @@ onMounted(load);
 	<div>
 		<div class="pageHeader">
 			<h1>Номенклатура</h1>
+			<div class="searchWrap">
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию или коду..." />
+				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
+			</div>
 			<div class="actions">
 				<label class="muted">
 					Тип:&nbsp;
@@ -81,11 +107,7 @@ onMounted(load);
 						<option value="product">Готовая продукция</option>
 					</select>
 				</label>
-				<button
-					v-if="permissions.canEditNomenclature"
-					class="btn btnPrimary"
-					type="button"
-				>
+				<button v-if="permissions.canEditNomenclature" class="btn btnPrimary" type="button">
 					Создать позицию
 				</button>
 				<button class="btn" type="button" @click="load">
@@ -97,14 +119,8 @@ onMounted(load);
 		<p v-if="isLoading">Загрузка…</p>
 		<p v-else-if="error">{{ error }}</p>
 
-		<EditableTable
-			v-else
-			:columns="columns"
-			:data="filteredItems"
-			row-key="id"
-			:can-edit="true"
-			@update="handleUpdate"
-		>
+		<EditableTable v-else :columns="columns" :data="displayedItems" row-key="id" :can-edit="true"
+			@update="handleUpdate">
 			<template #cell-name="{ item }">
 				<router-link :to="`/items/${item.id}`" class="link">{{
 					item.name
@@ -120,44 +136,10 @@ onMounted(load);
 	text-decoration: none;
 	font-weight: 500;
 }
+
 .link:hover {
 	text-decoration: underline;
 }
-.pageHeader {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: var(--space-4);
-}
-.actions {
-	display: flex;
-	gap: var(--space-3);
-	align-items: center;
-}
-.select {
-	padding: 6px;
-	border-radius: 4px;
-	border: 1px solid var(--border);
-	background: var(--surface);
-	color: var(--text);
-}
-.btn {
-	padding: 4px 8px;
-	border: 1px solid var(--border);
-	background: var(--surface);
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--text);
-}
-.btn:hover {
-	background: var(--surface-2);
-}
-.btnPrimary {
-	background: #646cff;
-	color: white;
-	border: none;
-}
-.btnPrimary:hover {
-	background: #535bf2;
-}
+
+/* page header, actions and buttons use global styles in `src/style.css` */
 </style>

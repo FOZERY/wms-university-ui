@@ -62,8 +62,8 @@ code {
 
 .pageHeader {
 	display: flex;
-	align-items: center;
 	justify-content: space-between;
+	align-items: center;
 	gap: var(--space-3);
 	margin-bottom: var(--space-3);
 }
@@ -77,6 +77,8 @@ code {
 	display: flex;
 	gap: var(--space-2);
 	flex-wrap: wrap;
+	/* keep actions visually right-aligned while title+search stay grouped on the left */
+	margin-left: auto;
 }
 
 .card {
@@ -127,8 +129,13 @@ code {
 }
 
 .btnPrimary {
-	border-color: color-mix(in srgb, AccentColor 40%, var(--border));
-	background: color-mix(in srgb, AccentColor 18%, var(--surface));
+	background: #646cff;
+	color: white;
+	border: none;
+}
+
+.btnPrimary:hover {
+	background: #535bf2;
 }
 
 .btnDanger {
@@ -159,3 +166,50 @@ code {
 .muted {
 	color: var(--muted);
 }
+
+/* Unified search input style used across list pages */
+.searchInput {
+	border: 1px solid var(--border);
+	background: var(--surface);
+	border-radius: 10px;
+	padding: 0 12px;
+	display: inline-flex;
+	align-items: center;
+	height: 40px;
+	color: CanvasText;
+	min-width: 160px;
+	/* allow search to grow but stay compact */
+	flex: 0 1 260px;
+	max-width: 300px;
+}
+
+.searchInput:focus {
+	outline: 2px solid color-mix(in srgb, AccentColor 35%, transparent);
+	outline-offset: 2px;
+}
+
+/* smaller placeholder so long text doesn't visually overflow */
+.searchInput::placeholder {
+	font-size: 13px;
+	opacity: 0.85;
+}
+
+/* wrapper for input + clear button */
+.searchWrap {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+.clearButton {
+	position: absolute;
+	right: 8px;
+	background: transparent;
+	border: none;
+	color: var(--muted);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 4px;
+}
+.clearButton:hover { color: CanvasText; }

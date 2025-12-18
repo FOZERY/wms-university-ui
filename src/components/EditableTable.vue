@@ -34,43 +34,40 @@ type SortRule = {
 
 const sortRules = ref<SortRule[]>([]);
 
-function toggleSort(field: keyof T, shiftKey: boolean) {
+function toggleSort(field: keyof T) {
+	// Multi-column sorting by default: clicking a column header
+	// will add it to the end of sort priority, toggle its direction,
+	// or remove it if cycled past 'desc'. This removes the need for
+	// modifier keys and enables composing sorts across multiple columns.
 	const existingIndex = sortRules.value.findIndex((r) => r.field === field);
 
-	if (!shiftKey) {
-		// Обычный клик - сортировка только по одному полю
-		if (existingIndex !== -1) {
-			const currentDirection = sortRules.value[existingIndex].direction;
-			if (currentDirection === "asc") {
-				sortRules.value = [{ field, direction: "desc" }];
+	if (existingIndex !== -1) {
+		// cycle: asc -> desc -> remove
+		const rule = sortRules.value[existingIndex];
+		if (rule) {
+			if (rule.direction === "asc") {
+				rule.direction = "desc";
 			} else {
-				sortRules.value = [];
-			}
-		} else {
-			sortRules.value = [{ field, direction: "asc" }];
-		}
-	} else {
-		// Shift+клик - множественная сортировка
-		if (existingIndex !== -1) {
-			const currentDirection = sortRules.value[existingIndex].direction;
-			if (currentDirection === "asc") {
-				sortRules.value[existingIndex].direction = "desc";
-			} else {
+				// remove from rules
 				sortRules.value.splice(existingIndex, 1);
 			}
-		} else {
-			sortRules.value.push({ field, direction: "asc" });
 		}
+	} else {
+		// add new rule at the end (lowest priority)
+		// cast field to any to satisfy strict typing when indexing later
+		sortRules.value.push({ field: field as any, direction: "asc" });
 	}
 }
 
 function getSortState(
-	field: keyof T,
+	field: keyof T
 ): { direction: SortDirection; order: number } | null {
 	const index = sortRules.value.findIndex((r) => r.field === field);
 	if (index === -1) return null;
+	const rule = sortRules.value[index];
+	if (!rule) return null;
 	return {
-		direction: sortRules.value[index].direction,
+		direction: rule.direction,
 		order: index + 1,
 	};
 }
@@ -80,11 +77,15 @@ const sortedData = computed(() => {
 
 	return [...props.data].sort((a, b) => {
 		for (const rule of sortRules.value) {
-			const aVal = a[rule.field];
-			const bVal = b[rule.field];
+			// use safe indexing and comparison
+			const key = rule.field as unknown as string;
+			const aVal = (a as any)[key];
+			const bVal = (b as any)[key];
 
 			let comparison = 0;
-			if (aVal < bVal) comparison = -1;
+			if (aVal == null && bVal != null) comparison = -1;
+			else if (aVal != null && bVal == null) comparison = 1;
+			else if (aVal < bVal) comparison = -1;
 			else if (aVal > bVal) comparison = 1;
 
 			if (comparison !== 0) {
@@ -112,7 +113,8 @@ function startEdit(item: T, field: keyof T, column: Column<T>) {
 
 function isEditing(itemId: any, field: keyof T): boolean {
 	return (
-		editingCell.value?.itemId === itemId && editingCell.value?.field === field
+		editingCell.value?.itemId === itemId &&
+		editingCell.value?.field === field
 	);
 }
 
@@ -131,7 +133,7 @@ async function saveEdit(item: T, column: Column<T>) {
 
 	// Показываем диалог подтверждения
 	const confirmed = window.confirm(
-		`Изменить "${column.label}" с "${oldValue}" на "${newValue}"?`,
+		`Изменить "${column.label}" с "${oldValue}" на "${newValue}"?`
 	);
 
 	if (confirmed) {
@@ -169,34 +171,16 @@ onUnmounted(() => {
 	<table class="table">
 		<thead>
 			<tr>
-				<th
-					v-for="col in columns"
-					:key="String(col.key)"
-					:style="col.width ? { width: col.width } : undefined"
-					:class="{ sortable: col.sortable !== false }"
-					@click="
-						col.sortable !== false
-							? toggleSort(col.key, $event.shiftKey)
-							: undefined
-					"
-				>
+				<th v-for="col in columns" :key="String(col.key)" :style="col.width ? { width: col.width } : undefined"
+					:class="{ sortable: col.sortable !== false }" @click="
+						col.sortable !== false ? toggleSort(col.key) : undefined
+						">
 					<div class="thContent">
 						<span>{{ col.label }}</span>
-						<span
-							v-if="col.sortable !== false"
-							class="sortIndicator"
-						>
+						<span v-if="col.sortable !== false" class="sortIndicator">
 							<template v-if="getSortState(col.key)">
-								<span class="sortArrow">{{
-									getSortState(col.key)!.direction === "asc"
-										? "↑"
-										: "↓"
-								}}</span>
-								<span
-									v-if="sortRules.length > 1"
-									class="sortOrder"
-									>{{ getSortState(col.key)!.order }}</span
-								>
+								<span class="sortArrow">{{ getSortState(col.key)!.direction === 'asc' ? '↑' : '↓' }}</span>
+								<span v-if="sortRules.length > 1" class="sortOrder">{{ getSortState(col.key)!.order }}</span>
 							</template>
 							<span v-else class="sortArrow inactive">⇅</span>
 						</span>
@@ -207,51 +191,25 @@ onUnmounted(() => {
 		</thead>
 		<tbody>
 			<tr v-for="item in sortedData" :key="item[rowKey]">
-				<td
-					v-for="col in columns"
-					:key="String(col.key)"
-					:class="{ editable: canEdit && col.editable }"
-					@dblclick="startEdit(item, col.key, col)"
-				>
+				<td v-for="col in columns" :key="String(col.key)" :class="{ editable: canEdit && col.editable }"
+					@dblclick="startEdit(item, col.key, col)">
 					<!-- Select -->
-					<select
-						v-if="
-							isEditing(item[rowKey], col.key) &&
-							col.type === 'select'
-						"
-						v-model="editValue"
-						class="cellSelect"
-						@blur="saveEdit(item, col)"
-						@change="saveEdit(item, col)"
-						@keydown.esc="cancelEdit"
-						autofocus
-					>
-						<option
-							v-for="opt in col.options"
-							:key="String(opt.value)"
-							:value="opt.value"
-						>
+					<select v-if="
+						isEditing(item[rowKey], col.key) &&
+						col.type === 'select'
+					" v-model="editValue" class="cellSelect" @blur="saveEdit(item, col)" @change="saveEdit(item, col)"
+						@keydown.esc="cancelEdit" autofocus>
+						<option v-for="opt in col.options" :key="String(opt.value)" :value="opt.value">
 							{{ opt.label }}
 						</option>
 					</select>
 					<!-- Textarea -->
-					<textarea
-						v-else-if="isEditing(item[rowKey], col.key)"
-						v-model="editValue"
-						class="cellInput"
-						@blur="saveEdit(item, col)"
-						@keydown.enter.prevent="saveEdit(item, col)"
-						@keydown.esc="cancelEdit"
-						rows="1"
-						autofocus
-					/>
+					<textarea v-else-if="isEditing(item[rowKey], col.key)" v-model="editValue" class="cellInput"
+						@blur="saveEdit(item, col)" @keydown.enter.prevent="saveEdit(item, col)" @keydown.esc="cancelEdit" rows="1"
+						autofocus />
 					<!-- Display -->
 					<span v-else>
-						<slot
-							:name="`cell-${String(col.key)}`"
-							:item="item"
-							:value="item[col.key]"
-						>
+						<slot :name="`cell-${String(col.key)}`" :item="item" :value="item[col.key]">
 							{{
 								col.format
 									? col.format(item[col.key])
