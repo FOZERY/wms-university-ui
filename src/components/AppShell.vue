@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { getPermissions } from "../shared/auth/permissions";
-import { roleToLabel } from "../shared/auth/permissions";
+import { getPermissions, roleToLabel } from "../shared/auth/permissions";
 import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -23,74 +22,74 @@ const dragStartWidth = ref(DEFAULT_WIDTH);
 const permissions = computed(() => getPermissions(auth.role));
 const displayRole = computed(() => roleToLabel(auth.role));
 const displayName = computed(() => {
-  if (!auth.me) return "";
-  const fn = auth.me.firstname ?? "";
-  const ln = auth.me.lastname ?? "";
-  if (fn || ln) return `${fn} ${ln}`.trim();
-  return auth.me.login ?? "";
+	if (!auth.me) return "";
+	const fn = auth.me.firstname ?? "";
+	const ln = auth.me.lastname ?? "";
+	if (fn || ln) return `${fn} ${ln}`.trim();
+	return auth.me.login ?? "";
 });
 
 async function onLogout() {
-  auth.logout();
-  await router.push({ name: "login" });
+	auth.logout();
+	await router.push({ name: "login" });
 }
 
 function toggleSidebar(force?: boolean) {
-  const next = force ?? !collapsed.value;
-  if (next) {
-    collapsed.value = true;
-  } else {
-    collapsed.value = false;
-    sidebarWidth.value = Math.min(
-      Math.max(lastExpandedWidth.value, MIN_WIDTH),
-      MAX_WIDTH
-    );
-  }
+	const next = force ?? !collapsed.value;
+	if (next) {
+		collapsed.value = true;
+	} else {
+		collapsed.value = false;
+		sidebarWidth.value = Math.min(
+			Math.max(lastExpandedWidth.value, MIN_WIDTH),
+			MAX_WIDTH,
+		);
+	}
 }
 
 function onDragStart(event: PointerEvent) {
-  if (collapsed.value) return;
-  isDragging.value = true;
-  dragStartX.value = event.clientX;
-  dragStartWidth.value = sidebarWidth.value;
-  window.addEventListener("pointermove", onDragMove);
-  window.addEventListener("pointerup", onDragEnd);
+	if (collapsed.value) return;
+	isDragging.value = true;
+	dragStartX.value = event.clientX;
+	dragStartWidth.value = sidebarWidth.value;
+	window.addEventListener("pointermove", onDragMove);
+	window.addEventListener("pointerup", onDragEnd);
 }
 
 function onDragMove(event: PointerEvent) {
-  if (!isDragging.value) return;
-  const delta = event.clientX - dragStartX.value;
-  const nextWidth = Math.min(
-    Math.max(dragStartWidth.value + delta, MIN_WIDTH),
-    MAX_WIDTH
-  );
+	if (!isDragging.value) return;
+	const delta = event.clientX - dragStartX.value;
+	const nextWidth = Math.min(
+		Math.max(dragStartWidth.value + delta, MIN_WIDTH),
+		MAX_WIDTH,
+	);
 
-  if (nextWidth < COLLAPSE_THRESHOLD) {
-    lastExpandedWidth.value = Math.max(MIN_WIDTH, dragStartWidth.value);
-    toggleSidebar(true);
-    onDragEnd();
-    return;
-  }
+	if (nextWidth < COLLAPSE_THRESHOLD) {
+		lastExpandedWidth.value = Math.max(MIN_WIDTH, dragStartWidth.value);
+		toggleSidebar(true);
+		onDragEnd();
+		return;
+	}
 
-  collapsed.value = false;
-  sidebarWidth.value = nextWidth;
-  lastExpandedWidth.value = nextWidth;
+	collapsed.value = false;
+	sidebarWidth.value = nextWidth;
+	lastExpandedWidth.value = nextWidth;
 }
 
 function onDragEnd() {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  window.removeEventListener("pointermove", onDragMove);
-  window.removeEventListener("pointerup", onDragEnd);
+	if (!isDragging.value) return;
+	isDragging.value = false;
+	window.removeEventListener("pointermove", onDragMove);
+	window.removeEventListener("pointerup", onDragEnd);
 }
 
 onMounted(() => {
-  window.addEventListener("pointerup", onDragEnd);
+	window.addEventListener("pointerup", onDragEnd);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("pointermove", onDragMove);
-  window.removeEventListener("pointerup", onDragEnd);
+	window.removeEventListener("pointermove", onDragMove);
+	window.removeEventListener("pointerup", onDragEnd);
 });
 </script>
 

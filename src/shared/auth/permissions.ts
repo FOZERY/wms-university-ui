@@ -1,27 +1,27 @@
 import type { UserRole } from "../api/types";
 
 export type Permissions = {
-  canEditNomenclature: boolean;
-  canCreateProductionDocuments: boolean;
-  canCancelDocuments: boolean;
-  canAdjustStock: boolean;
-  canExportReports: boolean;
+	canEditNomenclature: boolean;
+	canCreateProductionDocuments: boolean;
+	canCancelDocuments: boolean;
+	canAdjustStock: boolean;
+	canExportReports: boolean;
 };
 
 export function getPermissions(role: UserRole | null | undefined): Permissions {
-  const isManager = role === "manager";
+	const isManager = role === "manager";
 
-  return {
-    canEditNomenclature: isManager,
-    canCreateProductionDocuments: isManager,
-    canCancelDocuments: isManager,
-    canAdjustStock: isManager,
-    canExportReports: isManager,
-  };
+	return {
+		canEditNomenclature: isManager,
+		canCreateProductionDocuments: isManager,
+		canCancelDocuments: isManager,
+		canAdjustStock: isManager,
+		canExportReports: isManager,
+	};
 }
 
 export function roleToLabel(role: UserRole | null | undefined): string {
-  if (role === "manager") return "Менеджер";
-  if (role === "storeKeeper") return "Заведующий склада";
-  return "";
+	if (role === "manager") return "Менеджер";
+	if (role === "storeKeeper") return "Заведующий склада";
+	return "";
 }

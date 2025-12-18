@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -10,35 +10,33 @@ const supplier = ref<any>(null);
 const loading = ref(true);
 
 onMounted(async () => {
-	// Mock data
-	setTimeout(() => {
-		supplier.value = {
-			id: supplierId,
-			name: 'ООО "Поставщик"',
-			inn: "7700000000",
-			contactPerson: "Иванов Иван Иванович",
-			phone: "+7 (999) 000-00-00",
-			email: "info@supplier.com",
-			address: "г. Москва, ул. Пушкина, д. 10",
-			documents: [
-				{
-					id: 1,
-					number: "ПР-0001",
-					date: "2025-12-13",
-					amount: 50000,
-					status: "completed",
-				},
-				{
-					id: 3,
-					number: "ПР-0003",
-					date: "2025-12-11",
-					amount: 12000,
-					status: "completed",
-				},
-			],
-		};
-		loading.value = false;
-	}, 500);
+	// Mock data assigned synchronously (no artificial delay)
+	supplier.value = {
+		id: supplierId,
+		name: 'ООО "Поставщик"',
+		inn: "7700000000",
+		contactPerson: "Иванов Иван Иванович",
+		phone: "+7 (999) 000-00-00",
+		email: "info@supplier.com",
+		address: "г. Москва, ул. Пушкина, д. 10",
+		documents: [
+			{
+				id: 1,
+				number: "ПР-0001",
+				date: "2025-12-13",
+				amount: 50000,
+				status: "completed",
+			},
+			{
+				id: 3,
+				number: "ПР-0003",
+				date: "2025-12-11",
+				amount: 12000,
+				status: "completed",
+			},
+		],
+	};
+	loading.value = false;
 });
 
 const goBack = () => router.back();

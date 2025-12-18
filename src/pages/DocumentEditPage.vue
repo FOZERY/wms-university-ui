@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
 
@@ -23,21 +23,17 @@ const loading = ref(false);
 onMounted(async () => {
 	if (!isNew) {
 		loading.value = true;
-		// Mock fetch existing
-		setTimeout(() => {
-			form.value = {
-				type: "incoming",
-				date: "2025-12-13",
-				warehouseFromId: null,
-				warehouseToId: 1,
-				supplierId: 1,
-				comment: "Тестовый документ",
-				items: [
-					{ itemId: 1, name: "Гвозди", quantity: 100, unit: "кг" },
-				],
-			};
-			loading.value = false;
-		}, 500);
+		// Mock fetch existing - synchronous (no artificial delay)
+		form.value = {
+			type: "incoming",
+			date: "2025-12-13",
+			warehouseFromId: null,
+			warehouseToId: 1,
+			supplierId: 1,
+			comment: "Тестовый документ",
+			items: [{ itemId: 1, name: "Гвозди", quantity: 100, unit: "кг" }],
+		};
+		loading.value = false;
 	}
 });
 

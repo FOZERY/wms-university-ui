@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
 
@@ -14,24 +14,22 @@ onMounted(async () => {
 	// TODO: Fetch document by ID
 	// document.value = await api.documents.getById(documentId);
 
-	// Mock data for now
-	setTimeout(() => {
-		document.value = {
-			id: documentId,
-			number: "ПР-0001",
-			type: "incoming",
-			status: "draft",
-			date: "2025-12-13",
-			author: "storeKeeper",
-			supplier: { id: 1, name: 'ООО "Поставщик"' },
-			warehouseTo: { id: 1, name: "Основной склад" },
-			items: [
-				{ id: 1, name: "Гвозди", quantity: 100, unit: "кг", price: 50 },
-				{ id: 2, name: "Доски", quantity: 20, unit: "шт", price: 500 },
-			],
-		};
-		loading.value = false;
-	}, 500);
+	// Mock data for now — assign synchronously (no artificial delay)
+	document.value = {
+		id: documentId,
+		number: "ПР-0001",
+		type: "incoming",
+		status: "draft",
+		date: "2025-12-13",
+		author: "storeKeeper",
+		supplier: { id: 1, name: 'ООО "Поставщик"' },
+		warehouseTo: { id: 1, name: "Основной склад" },
+		items: [
+			{ id: 1, name: "Гвозди", quantity: 100, unit: "кг", price: 50 },
+			{ id: 2, name: "Доски", quantity: 20, unit: "шт", price: 500 },
+		],
+	};
+	loading.value = false;
 });
 
 const goBack = () => router.back();

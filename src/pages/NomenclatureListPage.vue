@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import EditableTable from "../components/EditableTable.vue";
 import type { Item } from "../shared/api/types";
+import { getPermissions } from "../shared/auth/permissions";
 import { mockItems } from "../shared/mocks/data";
 import { useAuthStore } from "../stores/auth";
-import { getPermissions } from "../shared/auth/permissions";
-import EditableTable from "../components/EditableTable.vue";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));

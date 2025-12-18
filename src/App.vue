@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useRoute, RouterView } from "vue-router";
+import { RouterView, useRoute } from "vue-router";
 import AppShell from "./components/AppShell.vue";
 
 const route = useRoute();

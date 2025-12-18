@@ -1,6 +1,4 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { useAuthStore } from "../stores/auth";
-
 import DashboardPage from "../pages/DashboardPage.vue";
 import DocumentDetailPage from "../pages/DocumentDetailPage.vue";
 import DocumentEditPage from "../pages/DocumentEditPage.vue";
@@ -15,6 +13,7 @@ import SupplierDetailPage from "../pages/SupplierDetailPage.vue";
 import SuppliersListPage from "../pages/SuppliersListPage.vue";
 import WarehouseDetailPage from "../pages/WarehouseDetailPage.vue";
 import WarehousesPage from "../pages/WarehousesPage.vue";
+import { useAuthStore } from "../stores/auth";
 
 declare module "vue-router" {
 	interface RouteMeta {
@@ -143,10 +142,7 @@ router.beforeEach(async (to) => {
 			return {
 				name: "login",
 				query: {
-					redirect:
-						typeof to.fullPath === "string"
-							? to.fullPath
-							: undefined,
+					redirect: typeof to.fullPath === "string" ? to.fullPath : undefined,
 				},
 			};
 		}

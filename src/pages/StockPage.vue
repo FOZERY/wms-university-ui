@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useAuthStore } from "../stores/auth";
+import EditableTable from "../components/EditableTable.vue";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockStock } from "../shared/mocks/data";
-import EditableTable from "../components/EditableTable.vue";
+import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
@@ -12,56 +12,56 @@ type WarehouseFilter = "all" | "materials" | "products";
 const warehouseFilter = ref<WarehouseFilter>("all");
 
 interface StockRow {
-  warehouseId: number;
-  warehouseName: string;
-  itemId: number;
-  itemName: string;
-  quantity: string;
-  reserved: string;
-  available: string;
+	warehouseId: number;
+	warehouseName: string;
+	itemId: number;
+	itemName: string;
+	quantity: string;
+	reserved: string;
+	available: string;
 }
 
 function mapWarehouseToRu(warehouseName: string): string {
-  // Простая маппинга под текущие моки.
-  return warehouseName.includes("Готов")
-    ? "Склад готовой продукции"
-    : "Склад материалов";
+	// Простая маппинга под текущие моки.
+	return warehouseName.includes("Готов")
+		? "Склад готовой продукции"
+		: "Склад материалов";
 }
 
 const filteredStock = computed(() => {
-  if (warehouseFilter.value === "all") return mockStock;
-  if (warehouseFilter.value === "products") {
-    return mockStock.filter((r) => r.warehouseName.includes("Готов"));
-  }
-  return mockStock.filter((r) => !r.warehouseName.includes("Готов"));
+	if (warehouseFilter.value === "all") return mockStock;
+	if (warehouseFilter.value === "products") {
+		return mockStock.filter((r) => r.warehouseName.includes("Готов"));
+	}
+	return mockStock.filter((r) => !r.warehouseName.includes("Готов"));
 });
 
 const columns = computed(() => [
-  {
-    key: "warehouseName" as keyof StockRow,
-    label: "Склад",
-    editable: true,
-    format: mapWarehouseToRu,
-  },
-  { key: "itemName" as keyof StockRow, label: "Товар", editable: true },
-  { key: "quantity" as keyof StockRow, label: "Кол-во", editable: true },
-  { key: "reserved" as keyof StockRow, label: "Резерв", editable: true },
-  { key: "available" as keyof StockRow, label: "Доступно", editable: true },
+	{
+		key: "warehouseName" as keyof StockRow,
+		label: "Склад",
+		editable: true,
+		format: mapWarehouseToRu,
+	},
+	{ key: "itemName" as keyof StockRow, label: "Товар", editable: true },
+	{ key: "quantity" as keyof StockRow, label: "Кол-во", editable: true },
+	{ key: "reserved" as keyof StockRow, label: "Резерв", editable: true },
+	{ key: "available" as keyof StockRow, label: "Доступно", editable: true },
 ]);
 
 function handleUpdate(item: StockRow, field: keyof StockRow, newValue: any) {
-  const itemIndex = mockStock.findIndex(
-    (s) => s.warehouseId === item.warehouseId && s.itemId === item.itemId
-  );
-  if (itemIndex !== -1) {
-    (mockStock[itemIndex] as any)[field] = newValue;
-  }
-  console.log("Сохранено:", {
-    warehouseId: item.warehouseId,
-    itemId: item.itemId,
-    field,
-    newValue,
-  });
+	const itemIndex = mockStock.findIndex(
+		(s) => s.warehouseId === item.warehouseId && s.itemId === item.itemId,
+	);
+	if (itemIndex !== -1) {
+		(mockStock[itemIndex] as any)[field] = newValue;
+	}
+	console.log("Сохранено:", {
+		warehouseId: item.warehouseId,
+		itemId: item.itemId,
+		field,
+		newValue,
+	});
 }
 </script>
 

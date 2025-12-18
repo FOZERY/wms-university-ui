@@ -1,7 +1,7 @@
 import { http } from "./http";
 import type {
-	DocumentDetail,
 	CreateDocumentRequest,
+	DocumentDetail,
 	DocumentListItem,
 } from "./types";
 
@@ -15,6 +15,5 @@ export const documentsApi = {
 	updateStatus: (id: number | string, status: string) =>
 		http.patch<DocumentDetail>(`/documents/${id}/status`, { status }),
 	cancel: (id: number | string) => http.delete(`/documents/${id}`),
-	getAudit: (id: number | string) =>
-		http.get<any[]>(`/documents/${id}/audit`),
+	getAudit: (id: number | string) => http.get<any[]>(`/documents/${id}/audit`),
 };

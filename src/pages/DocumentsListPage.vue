@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useAuthStore } from "../stores/auth";
+import BaseButton from "../components/BaseButton.vue";
+import EditableTable from "../components/EditableTable.vue";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockDocuments } from "../shared/mocks/data";
-import EditableTable from "../components/EditableTable.vue";
-import BaseButton from "../components/BaseButton.vue";
+import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
@@ -44,15 +44,13 @@ function printDocument(d: DocRow) {
 	w.document.open();
 	w.document.write(html);
 	w.document.close();
-	// give browser a moment to render before printing
-	setTimeout(() => {
-		try {
-			w.focus();
-			w.print();
-		} catch (e) {
-			// ignore
-		}
-	}, 100);
+	// Print immediately (removed artificial delay)
+	try {
+		w.focus();
+		w.print();
+	} catch (e) {
+		// ignore
+	}
 }
 
 const visibleDocs = computed(() => {

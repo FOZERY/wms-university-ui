@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -10,54 +10,52 @@ const warehouse = ref<any>(null);
 const loading = ref(true);
 
 onMounted(async () => {
-	// Mock data
-	setTimeout(() => {
-		warehouse.value = {
-			id: warehouseId,
-			name: "Основной склад",
-			address: "ул. Ленина, 1",
-			stats: {
-				totalItems: 150,
-				totalValue: 1500000,
-				capacity: 80,
+	// Mock data assigned synchronously (no artificial delay)
+	warehouse.value = {
+		id: warehouseId,
+		name: "Основной склад",
+		address: "ул. Ленина, 1",
+		stats: {
+			totalItems: 150,
+			totalValue: 1500000,
+			capacity: 80,
+		},
+		stock: [
+			{
+				id: 1,
+				name: "Гвозди",
+				quantity: 500,
+				reserved: 50,
+				available: 450,
+				unit: "кг",
 			},
-			stock: [
-				{
-					id: 1,
-					name: "Гвозди",
-					quantity: 500,
-					reserved: 50,
-					available: 450,
-					unit: "кг",
-				},
-				{
-					id: 2,
-					name: "Доски",
-					quantity: 100,
-					reserved: 0,
-					available: 100,
-					unit: "шт",
-				},
-			],
-			recentDocuments: [
-				{
-					id: 1,
-					number: "ПР-0001",
-					type: "incoming",
-					date: "2025-12-13",
-					status: "completed",
-				},
-				{
-					id: 2,
-					number: "РМ-0005",
-					type: "transfer",
-					date: "2025-12-10",
-					status: "completed",
-				},
-			],
-		};
-		loading.value = false;
-	}, 500);
+			{
+				id: 2,
+				name: "Доски",
+				quantity: 100,
+				reserved: 0,
+				available: 100,
+				unit: "шт",
+			},
+		],
+		recentDocuments: [
+			{
+				id: 1,
+				number: "ПР-0001",
+				type: "incoming",
+				date: "2025-12-13",
+				status: "completed",
+			},
+			{
+				id: 2,
+				number: "РМ-0005",
+				type: "transfer",
+				date: "2025-12-10",
+				status: "completed",
+			},
+		],
+	};
+	loading.value = false;
 });
 
 const goBack = () => router.back();

@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { ref, onMounted, onUnmounted, useSlots, computed } from "vue";
+import { computed, onMounted, onUnmounted, ref, useSlots } from "vue";
 
 interface Column<T> {
 	key: keyof T;
@@ -65,7 +65,7 @@ function toggleSort(field: keyof T, shiftKey: boolean) {
 }
 
 function getSortState(
-	field: keyof T
+	field: keyof T,
 ): { direction: SortDirection; order: number } | null {
 	const index = sortRules.value.findIndex((r) => r.field === field);
 	if (index === -1) return null;
@@ -112,8 +112,7 @@ function startEdit(item: T, field: keyof T, column: Column<T>) {
 
 function isEditing(itemId: any, field: keyof T): boolean {
 	return (
-		editingCell.value?.itemId === itemId &&
-		editingCell.value?.field === field
+		editingCell.value?.itemId === itemId && editingCell.value?.field === field
 	);
 }
 
@@ -132,7 +131,7 @@ async function saveEdit(item: T, column: Column<T>) {
 
 	// Показываем диалог подтверждения
 	const confirmed = window.confirm(
-		`Изменить "${column.label}" с "${oldValue}" на "${newValue}"?`
+		`Изменить "${column.label}" с "${oldValue}" на "${newValue}"?`,
 	);
 
 	if (confirmed) {

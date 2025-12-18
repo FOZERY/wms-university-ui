@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 
 const activeTab = ref("low-stock");
 const loading = ref(false);
@@ -11,55 +11,54 @@ onMounted(() => {
 });
 
 const loadData = () => {
+	// Populate mock reports synchronously (no artificial delay)
 	loading.value = true;
-	setTimeout(() => {
-		// Mock Low Stock
-		lowStockItems.value = [
-			{
-				id: 1,
-				name: "Гвозди",
-				minQuantity: 100,
-				currentQuantity: 50,
-				warehouse: "Основной склад",
-			},
-			{
-				id: 3,
-				name: "Краска",
-				minQuantity: 20,
-				currentQuantity: 5,
-				warehouse: "Цех №1",
-			},
-		];
+	// Mock Low Stock
+	lowStockItems.value = [
+		{
+			id: 1,
+			name: "Гвозди",
+			minQuantity: 100,
+			currentQuantity: 50,
+			warehouse: "Основной склад",
+		},
+		{
+			id: 3,
+			name: "Краска",
+			minQuantity: 20,
+			currentQuantity: 5,
+			warehouse: "Цех №1",
+		},
+	];
 
-		// Mock Movements
-		movements.value = [
-			{
-				id: 1,
-				date: "2025-12-13",
-				item: "Гвозди",
-				type: "incoming",
-				quantity: 500,
-				warehouse: "Основной склад",
-			},
-			{
-				id: 2,
-				date: "2025-12-12",
-				item: "Доски",
-				type: "transfer",
-				quantity: 100,
-				warehouse: "Основной склад -> Цех №1",
-			},
-			{
-				id: 3,
-				date: "2025-12-11",
-				item: "Краска",
-				type: "production",
-				quantity: -10,
-				warehouse: "Цех №1",
-			},
-		];
-		loading.value = false;
-	}, 500);
+	// Mock Movements
+	movements.value = [
+		{
+			id: 1,
+			date: "2025-12-13",
+			item: "Гвозди",
+			type: "incoming",
+			quantity: 500,
+			warehouse: "Основной склад",
+		},
+		{
+			id: 2,
+			date: "2025-12-12",
+			item: "Доски",
+			type: "transfer",
+			quantity: 100,
+			warehouse: "Основной склад -> Цех №1",
+		},
+		{
+			id: 3,
+			date: "2025-12-11",
+			item: "Краска",
+			type: "production",
+			quantity: -10,
+			warehouse: "Цех №1",
+		},
+	];
+	loading.value = false;
 };
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -10,54 +10,52 @@ const item = ref<any>(null);
 const loading = ref(true);
 
 onMounted(async () => {
-	// Mock data
-	setTimeout(() => {
-		item.value = {
-			id: itemId,
-			code: "ART-001",
-			name: "Гвозди строительные",
-			unit: "кг",
-			type: "material",
-			minQuantity: 100,
-			description: "Обычные гвозди для строительства",
-			totalQuantity: 1250,
-			balances: [
-				{
-					warehouseId: 1,
-					warehouseName: "Основной склад",
-					quantity: 1000,
-					reserved: 50,
-					available: 950,
-				},
-				{
-					warehouseId: 2,
-					warehouseName: "Цех №1",
-					quantity: 250,
-					reserved: 0,
-					available: 250,
-				},
-			],
-			history: [
-				{
-					id: 1,
-					date: "2025-12-13",
-					type: "incoming",
-					documentNumber: "ПР-0001",
-					quantity: 500,
-					warehouse: "Основной склад",
-				},
-				{
-					id: 2,
-					date: "2025-12-10",
-					type: "transfer",
-					documentNumber: "РМ-0005",
-					quantity: -200,
-					warehouse: "Основной склад",
-				},
-			],
-		};
-		loading.value = false;
-	}, 500);
+	// Mock data assigned synchronously (no artificial delay)
+	item.value = {
+		id: itemId,
+		code: "ART-001",
+		name: "Гвозди строительные",
+		unit: "кг",
+		type: "material",
+		minQuantity: 100,
+		description: "Обычные гвозди для строительства",
+		totalQuantity: 1250,
+		balances: [
+			{
+				warehouseId: 1,
+				warehouseName: "Основной склад",
+				quantity: 1000,
+				reserved: 50,
+				available: 950,
+			},
+			{
+				warehouseId: 2,
+				warehouseName: "Цех №1",
+				quantity: 250,
+				reserved: 0,
+				available: 250,
+			},
+		],
+		history: [
+			{
+				id: 1,
+				date: "2025-12-13",
+				type: "incoming",
+				documentNumber: "ПР-0001",
+				quantity: 500,
+				warehouse: "Основной склад",
+			},
+			{
+				id: 2,
+				date: "2025-12-10",
+				type: "transfer",
+				documentNumber: "РМ-0005",
+				quantity: -200,
+				warehouse: "Основной склад",
+			},
+		],
+	};
+	loading.value = false;
 });
 
 const goBack = () => router.back();

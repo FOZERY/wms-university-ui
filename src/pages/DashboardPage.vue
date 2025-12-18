@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import BaseButton from "../components/BaseButton.vue";
 import ChartCard from "../components/ChartCard.vue";
 import StatsSummary from "../components/StatsSummary.vue";
 import { useWarehouseStats } from "../composables/useWarehouseStats";
-import BaseButton from "../components/BaseButton.vue";
 
 const { data } = useWarehouseStats();
 
@@ -14,179 +14,179 @@ const exportWrapperRef = ref<HTMLElement | null>(null);
 const exportMenuRef = ref<HTMLElement | null>(null);
 
 async function toggleExportMenu() {
-  exportMenuOpen.value = !exportMenuOpen.value;
-  if (exportMenuOpen.value) {
-    await nextTick();
-    const wrapper = exportWrapperRef.value;
-    const menu = exportMenuRef.value;
-    if (!wrapper || !menu) return;
-    const wrapRect = wrapper.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-    // If menu would overflow viewport bottom, show it above the button
-    exportMenuAbove.value =
-      wrapRect.bottom + menuRect.height > window.innerHeight - 8;
-  } else {
-    exportMenuAbove.value = false;
-  }
+	exportMenuOpen.value = !exportMenuOpen.value;
+	if (exportMenuOpen.value) {
+		await nextTick();
+		const wrapper = exportWrapperRef.value;
+		const menu = exportMenuRef.value;
+		if (!wrapper || !menu) return;
+		const wrapRect = wrapper.getBoundingClientRect();
+		const menuRect = menu.getBoundingClientRect();
+		// If menu would overflow viewport bottom, show it above the button
+		exportMenuAbove.value =
+			wrapRect.bottom + menuRect.height > window.innerHeight - 8;
+	} else {
+		exportMenuAbove.value = false;
+	}
 }
 
 function closeExportMenu() {
-  exportMenuOpen.value = false;
+	exportMenuOpen.value = false;
 }
 
 function handleOutsideClick(e: MouseEvent) {
-  const el = chartCardRef.value?.$el as HTMLElement | undefined;
-  const wrap = exportWrapperRef.value;
-  if (wrap && wrap.contains(e.target as Node)) return; // click inside wrapper
-  if (!el) return;
-  if (!el.contains(e.target as Node)) closeExportMenu();
+	const el = chartCardRef.value?.$el as HTMLElement | undefined;
+	const wrap = exportWrapperRef.value;
+	if (wrap && wrap.contains(e.target as Node)) return; // click inside wrapper
+	if (!el) return;
+	if (!el.contains(e.target as Node)) closeExportMenu();
 }
 
 onMounted(() => document.addEventListener("click", handleOutsideClick));
 onBeforeUnmount(() =>
-  document.removeEventListener("click", handleOutsideClick)
+	document.removeEventListener("click", handleOutsideClick),
 );
 
 const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    title: { display: false },
-    tooltip: {
-      enabled: true,
-      callbacks: {
-        title: (items) => {
-          // Показываем полное название склада в tooltip
-          if (items && items.length > 0) {
-            return items[0].label;
-          }
-          return "";
-        },
-      },
-    },
-  },
-  scales: {
-    x: {
-      stacked: true,
-      ticks: {
-        display: true,
-        font: { size: 8 },
-        maxRotation: 0,
-        minRotation: 0,
-        callback: function (value, index, ticks) {
-          // Сокращаем длинные подписи, но показываем tooltip
-          const label = this.getLabelForValue
-            ? this.getLabelForValue(value)
-            : value;
-          if (typeof label === "string" && label.length > 10) {
-            return label.slice(0, 10) + "…";
-          }
-          return label;
-        },
-      },
-      grid: { display: false },
-    },
-    y: { stacked: true, beginAtZero: true },
-  },
+	responsive: true,
+	maintainAspectRatio: false,
+	plugins: {
+		legend: { display: false },
+		title: { display: false },
+		tooltip: {
+			enabled: true,
+			callbacks: {
+				title: (items) => {
+					// Показываем полное название склада в tooltip
+					if (items && items.length > 0) {
+						return items[0].label;
+					}
+					return "";
+				},
+			},
+		},
+	},
+	scales: {
+		x: {
+			stacked: true,
+			ticks: {
+				display: true,
+				font: { size: 8 },
+				maxRotation: 0,
+				minRotation: 0,
+				callback: function (value, index, ticks) {
+					// Сокращаем длинные подписи, но показываем tooltip
+					const label = this.getLabelForValue
+						? this.getLabelForValue(value)
+						: value;
+					if (typeof label === "string" && label.length > 10) {
+						return label.slice(0, 10) + "…";
+					}
+					return label;
+				},
+			},
+			grid: { display: false },
+		},
+		y: { stacked: true, beginAtZero: true },
+	},
 };
 
 const chartData = computed(() => {
-  const slice = data.value.slice(0, 2);
-  return {
-    labels: slice.map((w: any) => w.name),
-    datasets: [
-      {
-        label: "Занято",
-        backgroundColor: "rgba(99, 132, 255, 0.9)",
-        data: slice.map((w: any) => w.currentCount),
-      },
-      {
-        label: "Свободно",
-        backgroundColor: "rgba(160, 160, 160, 0.6)",
-        data: slice.map((w: any) => w.capacity - w.currentCount),
-      },
-    ],
-  };
+	const slice = data.value.slice(0, 2);
+	return {
+		labels: slice.map((w: any) => w.name),
+		datasets: [
+			{
+				label: "Занято",
+				backgroundColor: "rgba(99, 132, 255, 0.9)",
+				data: slice.map((w: any) => w.currentCount),
+			},
+			{
+				label: "Свободно",
+				backgroundColor: "rgba(160, 160, 160, 0.6)",
+				data: slice.map((w: any) => w.capacity - w.currentCount),
+			},
+		],
+	};
 });
 
 const utilization = computed(() =>
-  data.value.slice(0, 2).map((w: any) => ({
-    ...w,
-    percent: Math.round((w.currentCount / w.capacity) * 100),
-  }))
+	data.value.slice(0, 2).map((w: any) => ({
+		...w,
+		percent: Math.round((w.currentCount / w.capacity) * 100),
+	})),
 );
 
 function exportCSV() {
-  const rows = [["id", "name", "capacity", "currentCount", "percent"]];
-  utilization.value.forEach((w: any) =>
-    rows.push([
-      w.id,
-      w.name,
-      String(w.capacity),
-      String(w.currentCount),
-      String(w.percent),
-    ])
-  );
-  const csv = rows
-    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "warehouse_stats.csv";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+	const rows = [["id", "name", "capacity", "currentCount", "percent"]];
+	utilization.value.forEach((w: any) =>
+		rows.push([
+			w.id,
+			w.name,
+			String(w.capacity),
+			String(w.currentCount),
+			String(w.percent),
+		]),
+	);
+	const csv = rows
+		.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+		.join("\n");
+	const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = "warehouse_stats.csv";
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	URL.revokeObjectURL(url);
 }
 
 async function exportPNG() {
-  const card = chartCardRef.value;
-  if (!card || !card.getCanvas) return;
-  const canvas = card.getCanvas();
-  if (!canvas) return;
-  return new Promise<void>((resolve) => {
-    canvas.toBlob((blob: Blob | null) => {
-      if (!blob) return resolve();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "chart.png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      resolve();
-    });
-  });
+	const card = chartCardRef.value;
+	if (!card || !card.getCanvas) return;
+	const canvas = card.getCanvas();
+	if (!canvas) return;
+	return new Promise<void>((resolve) => {
+		canvas.toBlob((blob: Blob | null) => {
+			if (!blob) return resolve();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "chart.png";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+			resolve();
+		});
+	});
 }
 
 async function exportXLSX() {
-  const rows: any[] = [["id", "name", "capacity", "currentCount", "percent"]];
-  utilization.value.forEach((w: any) =>
-    rows.push([w.id, w.name, w.capacity, w.currentCount, w.percent])
-  );
-  try {
-    const XLSX = (await import("xlsx")) as any;
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "warehouse_stats.xlsx";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    // If xlsx is not available, fall back to CSV
-    exportCSV();
-  }
+	const rows: any[] = [["id", "name", "capacity", "currentCount", "percent"]];
+	utilization.value.forEach((w: any) =>
+		rows.push([w.id, w.name, w.capacity, w.currentCount, w.percent]),
+	);
+	try {
+		const XLSX = (await import("xlsx")) as any;
+		const ws = XLSX.utils.aoa_to_sheet(rows);
+		const wb = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+		const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+		const blob = new Blob([wbout], { type: "application/octet-stream" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "warehouse_stats.xlsx";
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+	} catch (e) {
+		// If xlsx is not available, fall back to CSV
+		exportCSV();
+	}
 }
 </script>
 

@@ -1,37 +1,38 @@
 <script setup lang="ts">
+import {
+	BarElement,
+	CategoryScale,
+	Chart as ChartJS,
+	Legend,
+	LinearScale,
+	Title,
+	Tooltip,
+} from "chart.js";
 import { ref } from "vue";
 import { Bar } from "vue-chartjs";
-import {
-  Chart as ChartJS,
-  Title,
-  Tooltip,
-  Legend,
-  BarElement,
-  CategoryScale,
-  LinearScale,
-} from "chart.js";
+
 ChartJS.register(
-  Title,
-  Tooltip,
-  Legend,
-  BarElement,
-  CategoryScale,
-  LinearScale
+	Title,
+	Tooltip,
+	Legend,
+	BarElement,
+	CategoryScale,
+	LinearScale,
 );
 
 const props = defineProps<{
-  title?: string;
-  chartData: any;
-  chartOptions?: any;
-  summaryItems?: Array<any>;
+	title?: string;
+	chartData: any;
+	chartOptions?: any;
+	summaryItems?: Array<any>;
 }>();
 
 const chartContainerRef = ref<HTMLElement | null>(null);
 
 function getCanvas(): HTMLCanvasElement | null {
-  return chartContainerRef.value
-    ? (chartContainerRef.value.querySelector("canvas") as HTMLCanvasElement)
-    : null;
+	return chartContainerRef.value
+		? (chartContainerRef.value.querySelector("canvas") as HTMLCanvasElement)
+		: null;
 }
 
 defineExpose({ getCanvas });
