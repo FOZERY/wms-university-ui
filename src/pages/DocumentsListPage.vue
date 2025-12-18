@@ -98,7 +98,7 @@ const columns = computed(() => [
 						</option>
 					</select>
 				</label>
-				<BaseButton variant="primary" @click="$router.push('/documents/new')">Создать (mock)</BaseButton>
+				<BaseButton variant="primary" @click="$router.push('/documents/new')">Создать документ</BaseButton>
 			</div>
 		</div>
 
