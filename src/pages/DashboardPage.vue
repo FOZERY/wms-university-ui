@@ -89,6 +89,56 @@ const chartOptions = {
 	},
 };
 
+// --- Mock data for additional dashboard charts ---
+function genLabels(days = 14) {
+	const res: string[] = [];
+	for (let i = days - 1; i >= 0; i--) {
+		const d = new Date();
+		d.setDate(d.getDate() - i);
+		res.push(d.toISOString().slice(5, 10));
+	}
+	return res;
+}
+
+const dailyChartData = computed(() => {
+	const labels = genLabels(14);
+	return {
+		labels,
+		datasets: [
+			{ label: "incoming", backgroundColor: "rgba(75,192,192,0.8)", data: labels.map(() => Math.floor(Math.random() * 20) + 5) },
+			{ label: "transfer", backgroundColor: "rgba(255,159,64,0.9)", data: labels.map(() => Math.floor(Math.random() * 10) + 2) },
+			{ label: "production", backgroundColor: "rgba(153,102,255,0.85)", data: labels.map(() => Math.floor(Math.random() * 8)) },
+		],
+	};
+});
+
+const stockChartData = computed(() => {
+	const labels = ["Склад A", "Склад B", "Склад C"];
+	return {
+		labels,
+		datasets: [
+			{ label: "Занято", backgroundColor: "rgba(99,132,255,0.9)", data: [120, 80, 40] },
+			{ label: "Резерв", backgroundColor: "rgba(255,205,86,0.9)", data: [20, 5, 10] },
+			{ label: "Свободно", backgroundColor: "rgba(160,160,160,0.6)", data: [30, 60, 70] },
+		],
+	};
+});
+
+const moversChartData = computed(() => {
+	const labels = ["Метал 1", "Деталь 42", "Клей", "Шайба"];
+	return {
+		labels,
+		datasets: [{ label: "Перемещено (шт)", backgroundColor: "rgba(54,162,235,0.9)", data: [340, 210, 180, 120] }],
+	};
+});
+
+const moversOptions = {
+	indexAxis: "y",
+	responsive: true,
+	maintainAspectRatio: false,
+	plugins: { legend: { display: false }, tooltip: { enabled: true } },
+};
+
 const chartData = computed(() => {
 	const slice = data.value.slice(0, 2);
 	return {
@@ -219,6 +269,19 @@ async function exportXLSX() {
 					</div>
 				</template>
 			</ChartCard>
+			<ChartCard :chartData="dailyChartData"
+				:chartOptions="{ ...chartOptions, scales: { x: { stacked: true }, y: { beginAtZero: true } } }"
+				title="Документы — 14 дней">
+				<template #controls>
+					<BaseButton variant="default" @click.prevent="closeExportMenu">Открыть список</BaseButton>
+				</template>
+			</ChartCard>
+
+			<ChartCard :chartData="stockChartData" :chartOptions="chartOptions" title="Остатки по складам">
+				<template #controls>
+					<BaseButton variant="default" @click.prevent="closeExportMenu">Открыть остатки</BaseButton>
+				</template>
+			</ChartCard>
 		</div>
 	</div>
 </template>
@@ -226,9 +289,21 @@ async function exportXLSX() {
 <style scoped>
 .chartsGrid {
 	display: grid;
-	grid-template-columns: 1fr;
+	grid-template-columns: repeat(3, 1fr);
 	gap: 12px;
-	max-width: 500px;
+	width: 100%;
+}
+
+@media (max-width: 1000px) {
+	.chartsGrid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 700px) {
+	.chartsGrid {
+		grid-template-columns: 1fr;
+	}
 }
 
 .exportArea {
