@@ -391,101 +391,108 @@ Array<{
 Ниже приведена схема БД, необходимая для поддержки описанного API и текущего функционала фронтенда.
 
 ### 1. users (Пользователи)
+
 Таблица для хранения учетных записей и ролей.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | UUID (PK) | Уникальный идентификатор |
-| `login` | VARCHAR | Логин для входа (unique) |
-| `password_hash` | VARCHAR | Хеш пароля |
-| `firstname` | VARCHAR | Имя |
-| `lastname` | VARCHAR | Фамилия |
-| `middlename` | VARCHAR | Отчество (nullable) |
-| `role` | VARCHAR | Роль: 'manager' или 'storeKeeper' |
-| `created_at` | TIMESTAMPTZ | Дата создания |
+| Поле            | Тип         | Описание                          |
+| :-------------- | :---------- | :-------------------------------- |
+| `id`            | UUID (PK)   | Уникальный идентификатор          |
+| `login`         | VARCHAR     | Логин для входа (unique)          |
+| `password_hash` | VARCHAR     | Хеш пароля                        |
+| `firstname`     | VARCHAR     | Имя                               |
+| `lastname`      | VARCHAR     | Фамилия                           |
+| `middlename`    | VARCHAR     | Отчество (nullable)               |
+| `role`          | VARCHAR     | Роль: 'manager' или 'storeKeeper' |
+| `created_at`    | TIMESTAMPTZ | Дата создания                     |
 
 ### 2. warehouses (Склады)
+
 Справочник мест хранения.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | SERIAL (PK) | Идентификатор |
-| `name` | VARCHAR | Название склада |
-| `address` | TEXT | Адрес (nullable) |
-| `capacity` | INTEGER | Вместимость (условные единицы) для расчета загруженности на дашборде |
-| `created_at` | TIMESTAMPTZ | |
+| Поле         | Тип         | Описание                                                             |
+| :----------- | :---------- | :------------------------------------------------------------------- |
+| `id`         | SERIAL (PK) | Идентификатор                                                        |
+| `name`       | VARCHAR     | Название склада                                                      |
+| `address`    | TEXT        | Адрес (nullable)                                                     |
+| `capacity`   | INTEGER     | Вместимость (условные единицы) для расчета загруженности на дашборде |
+| `created_at` | TIMESTAMPTZ |                                                                      |
 
 ### 3. suppliers (Поставщики)
+
 Контрагенты для приходных накладных.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | SERIAL (PK) | Идентификатор |
-| `name` | VARCHAR | Название организации |
-| `inn` | VARCHAR | ИНН (nullable) |
-| `contact_person` | VARCHAR | Контактное лицо (nullable) |
-| `phone` | VARCHAR | Телефон (nullable) |
-| `email` | VARCHAR | Email (nullable) |
-| `address` | TEXT | Юридический адрес (nullable) |
-| `created_at` | TIMESTAMPTZ | |
-| `updated_at` | TIMESTAMPTZ | |
+| Поле             | Тип         | Описание                     |
+| :--------------- | :---------- | :--------------------------- |
+| `id`             | SERIAL (PK) | Идентификатор                |
+| `name`           | VARCHAR     | Название организации         |
+| `inn`            | VARCHAR     | ИНН (nullable)               |
+| `contact_person` | VARCHAR     | Контактное лицо (nullable)   |
+| `phone`          | VARCHAR     | Телефон (nullable)           |
+| `email`          | VARCHAR     | Email (nullable)             |
+| `address`        | TEXT        | Юридический адрес (nullable) |
+| `created_at`     | TIMESTAMPTZ |                              |
+| `updated_at`     | TIMESTAMPTZ |                              |
 
 ### 4. items (Номенклатура)
+
 Товары и материалы.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | SERIAL (PK) | Идентификатор |
-| `code` | VARCHAR | Артикул / Код (unique) |
-| `name` | VARCHAR | Наименование |
-| `type` | VARCHAR | Тип: 'material' или 'product' |
-| `unit` | VARCHAR | Ед. измерения (кг, шт, л) |
-| `purchase_price` | DECIMAL(14,2) | Закупочная цена (nullable) |
-| `sell_price` | DECIMAL(14,2) | Цена продажи (nullable) |
-| `min_quantity` | DECIMAL(14,3) | Минимальный остаток (для уведомлений) |
-| `description` | TEXT | Описание (nullable) |
-| `created_at` | TIMESTAMPTZ | |
-| `updated_at` | TIMESTAMPTZ | |
+| Поле             | Тип           | Описание                              |
+| :--------------- | :------------ | :------------------------------------ |
+| `id`             | SERIAL (PK)   | Идентификатор                         |
+| `code`           | VARCHAR       | Артикул / Код (unique)                |
+| `name`           | VARCHAR       | Наименование                          |
+| `type`           | VARCHAR       | Тип: 'material' или 'product'         |
+| `unit`           | VARCHAR       | Ед. измерения (кг, шт, л)             |
+| `purchase_price` | DECIMAL(14,2) | Закупочная цена (nullable)            |
+| `sell_price`     | DECIMAL(14,2) | Цена продажи (nullable)               |
+| `min_quantity`   | DECIMAL(14,3) | Минимальный остаток (для уведомлений) |
+| `description`    | TEXT          | Описание (nullable)                   |
+| `created_at`     | TIMESTAMPTZ   |                                       |
+| `updated_at`     | TIMESTAMPTZ   |                                       |
 
 ### 5. documents (Документы)
+
 Шапки документов движения.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | SERIAL (PK) | Идентификатор |
-| `number` | VARCHAR | Номер документа (ПР-001 и т.д.) |
-| `type` | VARCHAR | Тип: 'incoming', 'transfer', 'production' |
-| `status` | VARCHAR | Статус: 'draft', 'completed', 'cancelled' |
-| `date` | DATE | Дата документа |
-| `user_id` | UUID (FK) | Автор документа (связь с users) |
-| `warehouse_from_id` | INT (FK) | Склад списания (nullable) |
-| `warehouse_to_id` | INT (FK) | Склад получения (nullable) |
-| `supplier_id` | INT (FK) | Поставщик (nullable, только для incoming) |
-| `comment` | TEXT | Комментарий |
-| `created_at` | TIMESTAMPTZ | |
-| `updated_at` | TIMESTAMPTZ | |
+| Поле                | Тип         | Описание                                  |
+| :------------------ | :---------- | :---------------------------------------- |
+| `id`                | SERIAL (PK) | Идентификатор                             |
+| `number`            | VARCHAR     | Номер документа (ПР-001 и т.д.)           |
+| `type`              | VARCHAR     | Тип: 'incoming', 'transfer', 'production' |
+| `status`            | VARCHAR     | Статус: 'draft', 'completed', 'cancelled' |
+| `date`              | DATE        | Дата документа                            |
+| `user_id`           | UUID (FK)   | Автор документа (связь с users)           |
+| `warehouse_from_id` | INT (FK)    | Склад списания (nullable)                 |
+| `warehouse_to_id`   | INT (FK)    | Склад получения (nullable)                |
+| `supplier_id`       | INT (FK)    | Поставщик (nullable, только для incoming) |
+| `comment`           | TEXT        | Комментарий                               |
+| `created_at`        | TIMESTAMPTZ |                                           |
+| `updated_at`        | TIMESTAMPTZ |                                           |
 
 ### 6. document_items (Позиции документов)
+
 Табличная часть документов.
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `id` | SERIAL (PK) | Идентификатор |
-| `document_id` | INT (FK) | Ссылка на документ |
-| `item_id` | INT (FK) | Ссылка на товар |
-| `quantity` | DECIMAL(14,3) | Количество |
-| `price` | DECIMAL(14,2) | Цена на момент операции (nullable) |
-| `direction` | VARCHAR | Направление ('in'/'out') - важно для производства |
+| Поле          | Тип           | Описание                                          |
+| :------------ | :------------ | :------------------------------------------------ |
+| `id`          | SERIAL (PK)   | Идентификатор                                     |
+| `document_id` | INT (FK)      | Ссылка на документ                                |
+| `item_id`     | INT (FK)      | Ссылка на товар                                   |
+| `quantity`    | DECIMAL(14,3) | Количество                                        |
+| `price`       | DECIMAL(14,2) | Цена на момент операции (nullable)                |
+| `direction`   | VARCHAR       | Направление ('in'/'out') - важно для производства |
 
 ### 7. stock_balances (Остатки)
+
 Текущие остатки на складах (регистр накопления).
 
-| Поле | Тип | Описание |
-| :--- | :--- | :--- |
-| `warehouse_id` | INT (FK) | Склад (PK part 1) |
-| `item_id` | INT (FK) | Товар (PK part 2) |
-| `quantity` | DECIMAL(14,3) | Физический остаток |
-| `reserved` | DECIMAL(14,3) | Резерв (под заказы/производство) |
-| `last_updated` | TIMESTAMPTZ | Время последнего изменения |
+| Поле           | Тип           | Описание                         |
+| :------------- | :------------ | :------------------------------- |
+| `warehouse_id` | INT (FK)      | Склад (PK part 1)                |
+| `item_id`      | INT (FK)      | Товар (PK part 2)                |
+| `quantity`     | DECIMAL(14,3) | Физический остаток               |
+| `reserved`     | DECIMAL(14,3) | Резерв (под заказы/производство) |
+| `last_updated` | TIMESTAMPTZ   | Время последнего изменения       |
 
-*Примечание: Поле `available` (доступно) вычисляется как `quantity - reserved`.*
+_Примечание: Поле `available` (доступно) вычисляется как `quantity - reserved`._
