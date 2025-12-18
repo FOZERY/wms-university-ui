@@ -17,6 +17,7 @@ const error = ref<string | null>(null);
 const items = ref<Item[]>([]);
 
 const showCreate = ref(false);
+const isEditing = ref(false);
 const creating = ref(false);
 const formError = ref<string | null>(null);
 const formModel = ref<Partial<Item>>({
@@ -27,6 +28,7 @@ const formModel = ref<Partial<Item>>({
 	minQuantity: "0",
 	description: null,
 });
+const editingId = ref<number | null>(null);
 
 type TypeFilter = "all" | Item["type"];
 const typeFilter = ref<TypeFilter>("all");
@@ -99,13 +101,18 @@ function handleUpdate(item: Item, field: keyof Item, newValue: any) {
 	if (itemIndex === -1) return;
 
 	// Frontend-only update for now (no API calls per request)
-	(items.value[itemIndex] as any)[field] = newValue;
-	items.value[itemIndex].updatedAt = Date.now();
+	if (itemIndex !== -1) {
+		(items.value[itemIndex] as any)[field] = newValue;
+		if (items.value[itemIndex]) items.value[itemIndex].updatedAt = Date.now();
+	}
 	console.log("Локально сохранено:", { itemId: item.id, field, newValue });
 }
 
+
 function openCreate() {
 	formError.value = null;
+	isEditing.value = false;
+	editingId.value = null;
 	formModel.value = {
 		code: "",
 		name: "",
@@ -117,8 +124,12 @@ function openCreate() {
 	showCreate.value = true;
 }
 
+// edit via modal on detail page; inline openEditItem removed
+
 function closeCreate() {
 	showCreate.value = false;
+	isEditing.value = false;
+	editingId.value = null;
 }
 
 async function submitCreate() {
@@ -128,6 +139,28 @@ async function submitCreate() {
 		// minimal validation
 		if (!formModel.value.name || !formModel.value.code) {
 			formError.value = "Код и название обязательны.";
+			return;
+		}
+
+		if (isEditing.value && editingId.value != null) {
+			// apply edit locally
+			const idx = items.value.findIndex((it) => it.id === editingId.value);
+			if (idx !== -1) {
+				const now = Date.now();
+				items.value[idx] = {
+					...items.value[idx],
+					code: String(formModel.value.code),
+					name: String(formModel.value.name),
+					type: (formModel.value.type as Item['type']) || 'material',
+					unit: String(formModel.value.unit || 'шт'),
+					minQuantity: String(formModel.value.minQuantity || '0'),
+					description: formModel.value.description || null,
+					updatedAt: now,
+				} as Item;
+			}
+			showCreate.value = false;
+			isEditing.value = false;
+			editingId.value = null;
 			return;
 		}
 
@@ -189,12 +222,10 @@ onMounted(load);
 		<p v-if="isLoading">Загрузка…</p>
 		<p v-else-if="error">{{ error }}</p>
 
-		<EditableTable v-else :columns="columns" :data="displayedItems" row-key="id" :can-edit="true"
-			@update="handleUpdate">
+		<EditableTable v-else :columns="columns" :data="displayedItems" row-key="id"
+			:rowLink="(item) => `/items/${item.id}`" @update="handleUpdate">
 			<template #cell-name="{ item }">
-				<router-link :to="`/items/${item.id}`" class="link">{{
-					item.name
-				}}</router-link>
+				{{ item.name }}
 			</template>
 		</EditableTable>
 

@@ -40,7 +40,9 @@ export interface Item {
 export interface Warehouse {
 	id: number;
 	name: string;
-	address?: string;
+	address: string | null;
+	/** Вместимость склада, в условных единицах (процент или количество) */
+	capacity?: number;
 }
 
 export interface LoginRequest {

@@ -4,6 +4,7 @@ export type Warehouse = {
 	id: number;
 	name: string;
 	address: string | null;
+	capacity?: number;
 };
 
 export type StockRow = {
@@ -97,9 +98,9 @@ export const mockSuppliers: Supplier[] = [
 ];
 
 export const mockWarehouses: Warehouse[] = [
-	{ id: 1, name: "Основной", address: "Цех 1" },
-	{ id: 2, name: "Готовая продукция", address: "Цех 2" },
-	{ id: 3, name: "Сырьё", address: null },
+	{ id: 1, name: "Основной", address: "Цех 1", capacity: 500 },
+	{ id: 2, name: "Готовая продукция", address: "Цех 2", capacity: 200 },
+	{ id: 3, name: "Сырьё", address: null, capacity: 1000 },
 ];
 
 export type WarehouseStats = {
@@ -136,6 +137,19 @@ export const mockStock: StockRow[] = [
 		available: "7.000",
 	},
 ];
+
+export type StockAdjustment = {
+	id: number;
+	userId: string | null;
+	warehouseId: number;
+	itemId: number;
+	delta: number; // positive = increase, negative = decrease
+	reason: string;
+	referenceDocument?: string | null;
+	createdAt: number;
+};
+
+export const mockAdjustments: StockAdjustment[] = [];
 
 export const mockDocuments: DocumentListItem[] = [
 	{

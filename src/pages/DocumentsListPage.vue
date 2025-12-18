@@ -104,11 +104,10 @@ const columns = computed(() => [
 
 
 
-		<EditableTable :columns="columns" :data="displayedDocs" row-key="id" :can-edit="false">
+		<EditableTable :columns="columns" :data="displayedDocs" row-key="id" :can-edit="false"
+			:rowLink="(item) => `/documents/${item.id}`">
 			<template #cell-number="{ item }">
-				<router-link :to="`/documents/${item.id}`" class="link">{{
-					item.number
-				}}</router-link>
+				<span>{{ item.number }}</span>
 			</template>
 			<template #actions="{ item }">
 				<button class="btn" type="button" @click="printDocument(item)">

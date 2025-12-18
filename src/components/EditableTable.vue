@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed, onMounted, onUnmounted, ref, useSlots } from "vue";
+import { computed, ref, useSlots } from "vue";
+import { useRouter } from "vue-router";
 
 interface Column<T> {
 	key: keyof T;
@@ -17,6 +18,8 @@ interface Props {
 	data: T[];
 	rowKey: keyof T;
 	canEdit?: boolean;
+	/** optional function to compute a route path for a row */
+	rowLink?: (item: T) => string | null;
 }
 
 const props = defineProps<Props>();
@@ -25,6 +28,22 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const router = useRouter();
+
+function onRowClick(item: T, e?: MouseEvent) {
+	try {
+		if (!props.rowLink) return;
+		// ignore clicks on interactive elements inside the row
+		if (e) {
+			const el = (e.target as HTMLElement)?.closest?.("a,button,input,select,textarea,label");
+			if (el) return;
+		}
+		const to = props.rowLink(item);
+		if (to) router.push(to);
+	} catch (err) {
+		// swallow
+	}
+}
 
 type SortDirection = "asc" | "desc";
 type SortRule = {
@@ -35,49 +54,32 @@ type SortRule = {
 const sortRules = ref<SortRule[]>([]);
 
 function toggleSort(field: keyof T) {
-	// Multi-column sorting by default: clicking a column header
-	// will add it to the end of sort priority, toggle its direction,
-	// or remove it if cycled past 'desc'. This removes the need for
-	// modifier keys and enables composing sorts across multiple columns.
 	const existingIndex = sortRules.value.findIndex((r) => r.field === field);
 
 	if (existingIndex !== -1) {
-		// cycle: asc -> desc -> remove
 		const rule = sortRules.value[existingIndex];
 		if (rule) {
-			if (rule.direction === "asc") {
-				rule.direction = "desc";
-			} else {
-				// remove from rules
-				sortRules.value.splice(existingIndex, 1);
-			}
+			if (rule.direction === "asc") rule.direction = "desc";
+			else sortRules.value.splice(existingIndex, 1);
 		}
 	} else {
-		// add new rule at the end (lowest priority)
-		// cast field to any to satisfy strict typing when indexing later
 		sortRules.value.push({ field: field as any, direction: "asc" });
 	}
 }
 
-function getSortState(
-	field: keyof T
-): { direction: SortDirection; order: number } | null {
+function getSortState(field: keyof T): { direction: SortDirection; order: number } | null {
 	const index = sortRules.value.findIndex((r) => r.field === field);
 	if (index === -1) return null;
 	const rule = sortRules.value[index];
 	if (!rule) return null;
-	return {
-		direction: rule.direction,
-		order: index + 1,
-	};
+	return { direction: rule.direction, order: index + 1 };
 }
 
 const sortedData = computed(() => {
-	if (sortRules.value.length === 0) return props.data;
+	if (sortRules.value.length === 0) return props.data as T[];
 
 	return [...props.data].sort((a, b) => {
 		for (const rule of sortRules.value) {
-			// use safe indexing and comparison
 			const key = rule.field as unknown as string;
 			const aVal = (a as any)[key];
 			const bVal = (b as any)[key];
@@ -88,82 +90,10 @@ const sortedData = computed(() => {
 			else if (aVal < bVal) comparison = -1;
 			else if (aVal > bVal) comparison = 1;
 
-			if (comparison !== 0) {
-				return rule.direction === "asc" ? comparison : -comparison;
-			}
+			if (comparison !== 0) return rule.direction === "asc" ? comparison : -comparison;
 		}
 		return 0;
 	});
-});
-
-type EditingCell = {
-	itemId: any;
-	field: keyof T;
-};
-
-const editingCell = ref<EditingCell | null>(null);
-const editValue = ref<string>("");
-
-function startEdit(item: T, field: keyof T, column: Column<T>) {
-	if (!props.canEdit || !column.editable) return;
-
-	editingCell.value = { itemId: item[props.rowKey], field };
-	editValue.value = String(item[field]);
-}
-
-function isEditing(itemId: any, field: keyof T): boolean {
-	return (
-		editingCell.value?.itemId === itemId &&
-		editingCell.value?.field === field
-	);
-}
-
-async function saveEdit(item: T, column: Column<T>) {
-	if (!editingCell.value) return;
-
-	const field = editingCell.value.field;
-	const oldValue = String(item[field as keyof T]);
-	const newValue = editValue.value.trim();
-
-	// Если значение не изменилось, просто закрываем редактирование
-	if (oldValue === newValue) {
-		editingCell.value = null;
-		return;
-	}
-
-	// Показываем диалог подтверждения
-	const confirmed = window.confirm(
-		`Изменить "${column.label}" с "${oldValue}" на "${newValue}"?`
-	);
-
-	if (confirmed) {
-		emit("update", item, field as keyof T, newValue);
-	}
-
-	editingCell.value = null;
-}
-
-function cancelEdit() {
-	editingCell.value = null;
-}
-
-// Обработчик клика вне таблицы для закрытия редактирования
-function handleClickOutside(event: MouseEvent) {
-	if (!editingCell.value) return;
-
-	const target = event.target as HTMLElement;
-	// Проверяем, что клик был не по input/select/textarea
-	if (!target.closest(".cellInput, .cellSelect")) {
-		editingCell.value = null;
-	}
-}
-
-onMounted(() => {
-	document.addEventListener("click", handleClickOutside);
-});
-
-onUnmounted(() => {
-	document.removeEventListener("click", handleClickOutside);
 });
 </script>
 
@@ -172,9 +102,8 @@ onUnmounted(() => {
 		<thead>
 			<tr>
 				<th v-for="col in columns" :key="String(col.key)" :style="col.width ? { width: col.width } : undefined"
-					:class="{ sortable: col.sortable !== false }" @click="
-						col.sortable !== false ? toggleSort(col.key) : undefined
-						">
+					:class="{ sortable: col.sortable !== false }"
+					@click="col.sortable !== false ? toggleSort(col.key) : undefined">
 					<div class="thContent">
 						<span>{{ col.label }}</span>
 						<span v-if="col.sortable !== false" class="sortIndicator">
@@ -190,33 +119,12 @@ onUnmounted(() => {
 			</tr>
 		</thead>
 		<tbody>
-			<tr v-for="item in sortedData" :key="item[rowKey]">
-				<td v-for="col in columns" :key="String(col.key)" :class="{ editable: canEdit && col.editable }"
-					@dblclick="startEdit(item, col.key, col)">
-					<!-- Select -->
-					<select v-if="
-						isEditing(item[rowKey], col.key) &&
-						col.type === 'select'
-					" v-model="editValue" class="cellSelect" @blur="saveEdit(item, col)" @change="saveEdit(item, col)"
-						@keydown.esc="cancelEdit" autofocus>
-						<option v-for="opt in col.options" :key="String(opt.value)" :value="opt.value">
-							{{ opt.label }}
-						</option>
-					</select>
-					<!-- Textarea -->
-					<textarea v-else-if="isEditing(item[rowKey], col.key)" v-model="editValue" class="cellInput"
-						@blur="saveEdit(item, col)" @keydown.enter.prevent="saveEdit(item, col)" @keydown.esc="cancelEdit" rows="1"
-						autofocus />
-					<!-- Display -->
-					<span v-else>
-						<slot :name="`cell-${String(col.key)}`" :item="item" :value="item[col.key]">
-							{{
-								col.format
-									? col.format(item[col.key])
-									: item[col.key]
-							}}
-						</slot>
-					</span>
+			<tr v-for="item in sortedData" :key="item[rowKey]"
+				:class="{ clickable: !!(props.rowLink && props.rowLink(item)) }" @click="onRowClick(item, $event)">
+				<td v-for="col in columns" :key="String(col.key)">
+					<slot :name="`cell-${String(col.key)}`" :item="item" :value="item[col.key]">
+						{{ col.format ? col.format(item[col.key]) : item[col.key] }}
+					</slot>
 				</td>
 				<td v-if="slots.actions">
 					<slot name="actions" :item="item"></slot>
@@ -228,48 +136,21 @@ onUnmounted(() => {
 
 <style scoped>
 .table {
-	table-layout: fixed;
-}
-
-.editable {
-	cursor: pointer;
-	position: relative;
-}
-
-.editable:hover {
-	background: var(--surface-2);
-}
-
-.cellInput,
-.cellSelect {
 	width: 100%;
-	max-width: 100%;
-	box-sizing: border-box;
-	padding: 6px 8px;
-	margin: -6px -8px;
-	border: 1px solid var(--border);
-	border-radius: 4px;
-	background: var(--surface);
-	color: CanvasText;
-	font: inherit;
-	resize: none;
-	overflow-wrap: break-word;
-	word-wrap: break-word;
-	white-space: pre-wrap;
-	min-height: 1.5em;
+	border-collapse: collapse;
+	margin-top: var(--space-3);
 }
 
-.cellInput:focus,
-.cellSelect:focus {
-	outline: 2px solid AccentColor;
-	outline-offset: -1px;
+.table th,
+.table td {
+	text-align: left;
+	padding: var(--space-2);
+	border-bottom: 1px solid var(--border);
 }
 
-.table td span {
-	display: block;
-	overflow-wrap: anywhere;
-	word-break: break-word;
-	white-space: normal;
+.table th {
+	color: var(--muted);
+	font-weight: 500;
 }
 
 .table thead th.sortable {
@@ -316,5 +197,13 @@ onUnmounted(() => {
 	min-width: 12px;
 	text-align: center;
 	font-weight: 600;
+}
+
+.clickable {
+	cursor: pointer;
+}
+
+.clickable:hover td {
+	background: color-mix(in srgb, var(--surface-2) 85%, transparent);
 }
 </style>

@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import ModalForm from "../components/ModalForm.vue";
+import FormField from "../components/FormField.vue";
+import { useAuthStore } from "../stores/auth";
+import { getPermissions } from "../shared/auth/permissions";
 
 const route = useRoute();
 const router = useRouter();
@@ -8,6 +12,12 @@ const itemId = route.params.id as string;
 
 const item = ref<any>(null);
 const loading = ref(true);
+const showEdit = ref(false);
+const saving = ref(false);
+const formModel = ref<any>({});
+
+const auth = useAuthStore();
+const permissions = computed(() => getPermissions(auth.role));
 
 onMounted(async () => {
 	// Mock data assigned synchronously (no artificial delay)
@@ -59,6 +69,39 @@ onMounted(async () => {
 });
 
 const goBack = () => router.back();
+
+function openEdit() {
+	formModel.value = {
+		code: item.value.code,
+		name: item.value.name,
+		unit: item.value.unit,
+		type: item.value.type,
+		minQuantity: item.value.minQuantity,
+		description: item.value.description,
+	};
+	showEdit.value = true;
+}
+
+async function submitEdit() {
+	saving.value = true;
+	try {
+		if (!formModel.value.name) throw new Error('Название обязательно');
+		item.value = {
+			...item.value,
+			code: String(formModel.value.code),
+			name: String(formModel.value.name),
+			unit: String(formModel.value.unit || ''),
+			type: String(formModel.value.type || 'material'),
+			minQuantity: String(formModel.value.minQuantity || '0'),
+			description: String(formModel.value.description || ''),
+		};
+		showEdit.value = false;
+	} catch (e: any) {
+		alert(e?.message || 'Не удалось сохранить');
+	} finally {
+		saving.value = false;
+	}
+}
 </script>
 
 <template>
@@ -68,7 +111,30 @@ const goBack = () => router.back();
 				<button @click="goBack" class="backBtn">← Назад</button>
 				<h1>{{ item?.name || "Номенклатура" }}</h1>
 			</div>
+			<div class="actions">
+				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
+					@click="openEdit">Редактировать</button>
+			</div>
 		</div>
+
+		<ModalForm v-model="showEdit" title="Редактировать позицию">
+			<div>
+				<FormField label="Код" v-model="formModel.code" placeholder="ART-001" />
+				<FormField label="Название" v-model="formModel.name" placeholder="наименование" />
+				<FormField label="Единица" v-model="formModel.unit" placeholder="шт, кг" />
+				<FormField label="Тип" type="select"
+					:options="[{ value: 'material', label: 'Материал' }, { value: 'product', label: 'Готовая продукция' }]"
+					v-model="formModel.type" />
+				<FormField label="Мин. остаток" v-model="formModel.minQuantity" placeholder="0" />
+				<FormField label="Описание" type="textarea" v-model="formModel.description" placeholder="необязательно" />
+			</div>
+
+			<template #footer>
+				<button class="btn" type="button" @click="showEdit = false">Отмена</button>
+				<button class="btn btnPrimary" type="button" @click="submitEdit" :disabled="saving">{{ saving ? 'Сохраняю...' :
+					'Сохранить' }}</button>
+			</template>
+		</ModalForm>
 
 		<div v-if="loading" class="loading">Загрузка...</div>
 
@@ -112,18 +178,11 @@ const goBack = () => router.back();
 							</tr>
 						</thead>
 						<tbody>
-							<tr
-								v-for="balance in item.balances"
-								:key="balance.warehouseId"
-							>
+							<tr v-for="balance in item.balances" :key="balance.warehouseId">
 								<td>
-									<router-link
-										:to="`/warehouses/${balance.warehouseId}`"
-										class="link"
-										>{{
-											balance.warehouseName
-										}}</router-link
-									>
+									<router-link :to="`/warehouses/${balance.warehouseId}`" class="link">{{
+										balance.warehouseName
+									}}</router-link>
 								</td>
 								<td>{{ balance.quantity }}</td>
 								<td>{{ balance.reserved }}</td>
@@ -148,20 +207,13 @@ const goBack = () => router.back();
 							<tr v-for="rec in item.history" :key="rec.id">
 								<td>{{ rec.date }}</td>
 								<td>
-									<router-link
-										:to="`/documents/${rec.id}`"
-										class="link"
-										>{{ rec.documentNumber }}</router-link
-									>
+									<router-link :to="`/documents/${rec.id}`" class="link">{{ rec.documentNumber }}</router-link>
 								</td>
 								<td>{{ rec.type }}</td>
-								<td
-									:class="
-										rec.quantity > 0
-											? 'positive'
-											: 'negative'
-									"
-								>
+								<td :class="rec.quantity > 0
+										? 'positive'
+										: 'negative'
+									">
 									{{ rec.quantity > 0 ? "+" : ""
 									}}{{ rec.quantity }}
 								</td>
@@ -271,6 +323,7 @@ const goBack = () => router.back();
 .positive {
 	color: #34d399;
 }
+
 .negative {
 	color: #f87171;
 }

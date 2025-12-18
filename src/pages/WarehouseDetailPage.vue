@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import ModalForm from "../components/ModalForm.vue";
+import FormField from "../components/FormField.vue";
+import { useAuthStore } from "../stores/auth";
+import { getPermissions } from "../shared/auth/permissions";
 
 const route = useRoute();
 const router = useRouter();
@@ -8,6 +12,12 @@ const warehouseId = route.params.id as string;
 
 const warehouse = ref<any>(null);
 const loading = ref(true);
+const showEdit = ref(false);
+const saving = ref(false);
+const formModel = ref<any>({});
+
+const auth = useAuthStore();
+const permissions = computed(() => getPermissions(auth.role));
 
 onMounted(async () => {
 	// Mock data assigned synchronously (no artificial delay)
@@ -59,6 +69,33 @@ onMounted(async () => {
 });
 
 const goBack = () => router.back();
+
+function openEdit() {
+	formModel.value = {
+		name: warehouse.value.name,
+		address: warehouse.value.address,
+		capacity: warehouse.value.capacity ?? null,
+	};
+	showEdit.value = true;
+}
+
+async function submitEdit() {
+	saving.value = true;
+	try {
+		if (!formModel.value.name) throw new Error('Название обязательно');
+		warehouse.value = {
+			...warehouse.value,
+			name: String(formModel.value.name),
+			address: String(formModel.value.address || ''),
+			capacity: formModel.value.capacity != null ? Number(formModel.value.capacity) : undefined,
+		};
+		showEdit.value = false;
+	} catch (e: any) {
+		alert(e?.message || 'Не удалось сохранить');
+	} finally {
+		saving.value = false;
+	}
+}
 </script>
 
 <template>
@@ -68,7 +105,25 @@ const goBack = () => router.back();
 				<button @click="goBack" class="backBtn">← Назад</button>
 				<h1>{{ warehouse?.name || "Склад" }}</h1>
 			</div>
+			<div class="actions">
+				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
+					@click="openEdit">Редактировать</button>
+			</div>
 		</div>
+
+		<ModalForm v-model="showEdit" title="Редактировать склад">
+			<div>
+				<FormField label="Название" v-model="formModel.name" placeholder="Название склада" />
+				<FormField label="Адрес" type="textarea" v-model="formModel.address" placeholder="улица, дом" />
+				<FormField label="Вместимость" v-model="formModel.capacity" placeholder="число (например, 500)" />
+			</div>
+
+			<template #footer>
+				<button class="btn" type="button" @click="showEdit = false">Отмена</button>
+				<button class="btn btnPrimary" type="button" @click="submitEdit" :disabled="saving">{{ saving ? 'Сохраняю...' :
+					'Сохранить' }}</button>
+			</template>
+		</ModalForm>
 
 		<div v-if="loading" class="loading">Загрузка...</div>
 
@@ -107,11 +162,7 @@ const goBack = () => router.back();
 						<tbody>
 							<tr v-for="item in warehouse.stock" :key="item.id">
 								<td>
-									<router-link
-										:to="`/items/${item.id}`"
-										class="link"
-										>{{ item.name }}</router-link
-									>
+									<router-link :to="`/items/${item.id}`" class="link">{{ item.name }}</router-link>
 								</td>
 								<td>{{ item.quantity }} {{ item.unit }}</td>
 								<td>{{ item.reserved }} {{ item.unit }}</td>
@@ -133,16 +184,9 @@ const goBack = () => router.back();
 							</tr>
 						</thead>
 						<tbody>
-							<tr
-								v-for="doc in warehouse.recentDocuments"
-								:key="doc.id"
-							>
+							<tr v-for="doc in warehouse.recentDocuments" :key="doc.id">
 								<td>
-									<router-link
-										:to="`/documents/${doc.id}`"
-										class="link"
-										>{{ doc.number }}</router-link
-									>
+									<router-link :to="`/documents/${doc.id}`" class="link">{{ doc.number }}</router-link>
 								</td>
 								<td>{{ doc.type }}</td>
 								<td>{{ doc.date }}</td>

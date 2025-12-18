@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, reactive } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
-import FormField from "../components/FormField.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -67,6 +66,16 @@ function updateDraftItem(index: number, field: string, value: any) {
 	} else {
 		item[field] = value;
 	}
+}
+
+function onQuantityInput(e: Event, index: number) {
+	const v = (e.target as HTMLInputElement)?.value;
+	updateDraftItem(index, 'quantity', v);
+}
+
+function onPriceInput(e: Event, index: number) {
+	const v = (e.target as HTMLInputElement)?.value;
+	updateDraftItem(index, 'price', v);
 }
 </script>
 
@@ -149,13 +158,12 @@ function updateDraftItem(index: number, field: string, value: any) {
 							<td v-if="!editMode">{{ item.quantity }}</td>
 							<td v-else>
 								<input type="number" min="0" step="0.001" :value="item.quantity"
-									@input="(e) => updateDraftItem(index, 'quantity', e.target.value)" />
+									@input="(e) => onQuantityInput(e, index)" />
 							</td>
 							<td>{{ item.unit }}</td>
 							<td v-if="!editMode">{{ item.price }} ₽</td>
 							<td v-else>
-								<input type="number" min="0" step="0.01" :value="item.price"
-									@input="(e) => updateDraftItem(index, 'price', e.target.value)" />
+								<input type="number" min="0" step="0.01" :value="item.price" @input="(e) => onPriceInput(e, index)" />
 							</td>
 							<td>{{ (item.quantity * item.price) || 0 }} ₽</td>
 						</tr>

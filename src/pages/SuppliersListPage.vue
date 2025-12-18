@@ -4,6 +4,10 @@ import EditableTable from "../components/EditableTable.vue";
 import useDebounce from "../composables/useDebounce";
 import type { Supplier } from "../shared/api/types";
 import { mockSuppliers } from "../shared/mocks/data";
+import ModalForm from "../components/ModalForm.vue";
+import FormField from "../components/FormField.vue";
+import { useAuthStore } from "../stores/auth";
+import { getPermissions } from "../shared/auth/permissions";
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
@@ -78,6 +82,45 @@ const displayedSuppliers = computed(() => {
 // no update handler required for suppliers list at the moment
 
 onMounted(load);
+
+const auth = useAuthStore();
+const permissions = computed(() => getPermissions(auth.role));
+
+const showCreate = ref(false);
+const creating = ref(false);
+const createModel = ref<Partial<Supplier>>({ name: "", inn: "", contactPerson: "", phone: "", email: "", address: "" });
+
+function openCreate() {
+	createModel.value = { name: "", inn: "", contactPerson: "", phone: "", email: "", address: "" };
+	showCreate.value = true;
+}
+
+async function submitCreate() {
+	creating.value = true;
+	try {
+		if (!createModel.value.name) throw new Error("Название обязательно");
+		const maxId = mockSuppliers.reduce((m, s) => Math.max(m, s.id), 0);
+		const now = Date.now();
+		const created: Supplier = {
+			id: maxId + 1,
+			name: String(createModel.value.name),
+			inn: createModel.value.inn || null,
+			contactPerson: createModel.value.contactPerson || null,
+			phone: createModel.value.phone || null,
+			email: createModel.value.email || null,
+			address: createModel.value.address || null,
+			createdAt: now,
+			updatedAt: now,
+		};
+		mockSuppliers.unshift(created);
+		suppliers.value = mockSuppliers;
+		showCreate.value = false;
+	} catch (e: any) {
+		alert(e?.message || "Не удалось создать поставщика");
+	} finally {
+		creating.value = false;
+	}
+}
 </script>
 
 <template>
@@ -92,19 +135,38 @@ onMounted(load);
 				<button class="btn" type="button" @click="load">
 					Обновить
 				</button>
+				<button v-if="permissions.canEditNomenclature" class="btn btnPrimary" type="button" @click="openCreate">
+					Создать поставщика
+				</button>
 			</div>
 		</div>
 
 		<p v-if="isLoading">Загрузка…</p>
 		<p v-else-if="error">{{ error }}</p>
 
-		<EditableTable v-else :columns="columns" :data="displayedSuppliers" row-key="id" :can-edit="false">
+		<EditableTable v-else :columns="columns" :data="displayedSuppliers" row-key="id" :can-edit="false"
+			:rowLink="(item) => `/suppliers/${item.id}`">
 			<template #cell-name="{ item }">
-				<router-link :to="`/suppliers/${item.id}`" class="link">{{
-					item.name
-				}}</router-link>
+				<span>{{ item.name }}</span>
 			</template>
 		</EditableTable>
+
+		<ModalForm v-model="showCreate" title="Создать поставщика">
+			<div>
+				<FormField label="Название" v-model="createModel.name" placeholder="ООО Ромашка" />
+				<FormField label="ИНН" v-model="createModel.inn" placeholder="7700000000" />
+				<FormField label="Контактное лицо" v-model="createModel.contactPerson" placeholder="ФИО" />
+				<FormField label="Телефон" v-model="createModel.phone" placeholder="+7 (900) 000-00-00" />
+				<FormField label="Email" v-model="createModel.email" placeholder="contact@company.test" />
+				<FormField label="Адрес" type="textarea" v-model="createModel.address" placeholder="город, улица, дом" />
+			</div>
+
+			<template #footer>
+				<button class="btn" type="button" @click="showCreate = false">Отмена</button>
+				<button class="btn btnPrimary" type="button" @click="submitCreate" :disabled="creating">{{ creating ?
+					'Создаю...' : 'Создать' }}</button>
+			</template>
+		</ModalForm>
 	</div>
 </template>
 

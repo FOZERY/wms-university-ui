@@ -164,13 +164,8 @@ const lowStockChartData = computed(() => {
 	};
 });
 
-const lowStockSummaryItems = computed(() => {
-	return lowStockItems.map(i => ({
-		id: i.id,
-		name: i.name,
-		percent: Math.round((i.current / i.min) * 100),
-	}));
-});
+// summary items derived from lowStockItems (kept for future use)
+// (removed as a separate computed to avoid unused-variable build error)
 
 // Легенда для документов
 const docLegend = [
