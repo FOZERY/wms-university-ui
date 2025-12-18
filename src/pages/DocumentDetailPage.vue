@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
+import FormField from "../components/FormField.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -9,6 +10,8 @@ const documentId = route.params.id as string;
 
 const document = ref<any>(null);
 const loading = ref(true);
+const editMode = ref(false);
+const draft = ref<any>(null);
 
 onMounted(async () => {
 	// TODO: Fetch document by ID
@@ -33,6 +36,38 @@ onMounted(async () => {
 });
 
 const goBack = () => router.back();
+
+function openEdit() {
+	if (!document.value) return;
+	// shallow clone for editing (deep enough for our structure)
+	draft.value = JSON.parse(JSON.stringify(document.value));
+	editMode.value = true;
+}
+
+function cancelEdit() {
+	draft.value = null;
+	editMode.value = false;
+}
+
+function saveEdit() {
+	if (!draft.value) return;
+	// apply draft locally (no API call per instructions)
+	document.value = JSON.parse(JSON.stringify(draft.value));
+	draft.value = null;
+	editMode.value = false;
+}
+
+function updateDraftItem(index: number, field: string, value: any) {
+	if (!draft.value) return;
+	const item = draft.value.items[index];
+	if (!item) return;
+	if (field === 'quantity' || field === 'price') {
+		const num = Number(value);
+		item[field] = Number.isNaN(num) ? 0 : num;
+	} else {
+		item[field] = value;
+	}
+}
 </script>
 
 <template>
@@ -43,8 +78,14 @@ const goBack = () => router.back();
 				<h1>Документ {{ document?.number }}</h1>
 			</div>
 			<div class="actions" v-if="document">
-				<BaseButton v-if="document.status === 'draft'" variant="primary">Редактировать</BaseButton>
-				<BaseButton variant="secondary">Печать</BaseButton>
+				<template v-if="!editMode">
+					<BaseButton v-if="document.status === 'draft'" variant="primary" @click="openEdit">Редактировать</BaseButton>
+					<BaseButton variant="secondary">Печать</BaseButton>
+				</template>
+				<template v-else>
+					<BaseButton variant="secondary" @click="cancelEdit">Отмена</BaseButton>
+					<BaseButton variant="primary" @click="saveEdit">Сохранить</BaseButton>
+				</template>
 			</div>
 		</div>
 
@@ -66,7 +107,8 @@ const goBack = () => router.back();
 					</div>
 					<div class="infoItem">
 						<span class="label">Дата:</span>
-						<span class="value">{{ document.date }}</span>
+						<span class="value" v-if="!editMode">{{ document.date }}</span>
+						<input v-else type="date" v-model="draft.date" />
 					</div>
 					<div class="infoItem">
 						<span class="label">Автор:</span>
@@ -99,15 +141,23 @@ const goBack = () => router.back();
 						</tr>
 					</thead>
 					<tbody>
-						<tr v-for="(item, index) in document.items" :key="item.id">
+						<tr v-for="(item, index) in (editMode ? draft.items : document.items)" :key="item.id">
 							<td>{{ index + 1 }}</td>
 							<td>
 								<router-link :to="`/items/${item.id}`" class="link">{{ item.name }}</router-link>
 							</td>
-							<td>{{ item.quantity }}</td>
+							<td v-if="!editMode">{{ item.quantity }}</td>
+							<td v-else>
+								<input type="number" min="0" step="0.001" :value="item.quantity"
+									@input="(e) => updateDraftItem(index, 'quantity', e.target.value)" />
+							</td>
 							<td>{{ item.unit }}</td>
-							<td>{{ item.price }} ₽</td>
-							<td>{{ item.quantity * item.price }} ₽</td>
+							<td v-if="!editMode">{{ item.price }} ₽</td>
+							<td v-else>
+								<input type="number" min="0" step="0.01" :value="item.price"
+									@input="(e) => updateDraftItem(index, 'price', e.target.value)" />
+							</td>
+							<td>{{ (item.quantity * item.price) || 0 }} ₽</td>
 						</tr>
 					</tbody>
 				</table>

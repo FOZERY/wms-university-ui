@@ -11,7 +11,9 @@ export type NomenclatureListQuery = {
 
 export const nomenclatureApi = {
 	async list(query?: NomenclatureListQuery): Promise<Item[]> {
-		const { data } = await http.get<Item[]>("/nomenclature", { params: query });
+		const { data } = await http.get<Item[]>("/nomenclature", {
+			params: query,
+		});
 		return data;
 	},
 

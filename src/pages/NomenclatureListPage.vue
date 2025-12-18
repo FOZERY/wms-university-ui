@@ -6,6 +6,8 @@ import type { Item } from "../shared/api/types";
 import { getPermissions } from "../shared/auth/permissions";
 import { mockItems } from "../shared/mocks/data";
 import { useAuthStore } from "../stores/auth";
+import ModalForm from "../components/ModalForm.vue";
+import FormField from "../components/FormField.vue";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
@@ -13,6 +15,18 @@ const permissions = computed(() => getPermissions(auth.role));
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const items = ref<Item[]>([]);
+
+const showCreate = ref(false);
+const creating = ref(false);
+const formError = ref<string | null>(null);
+const formModel = ref<Partial<Item>>({
+	code: "",
+	name: "",
+	type: "material",
+	unit: "",
+	minQuantity: "0",
+	description: null,
+});
 
 type TypeFilter = "all" | Item["type"];
 const typeFilter = ref<TypeFilter>("all");
@@ -71,8 +85,9 @@ async function load() {
 	error.value = null;
 
 	try {
+		// keep forms frontend-first for now — use mock data source
 		items.value = mockItems;
-	} catch {
+	} catch (e) {
 		error.value = "Не удалось загрузить номенклатуру.";
 	} finally {
 		isLoading.value = false;
@@ -81,10 +96,65 @@ async function load() {
 
 function handleUpdate(item: Item, field: keyof Item, newValue: any) {
 	const itemIndex = items.value.findIndex((it) => it.id === item.id);
-	if (itemIndex !== -1) {
-		(items.value[itemIndex] as any)[field] = newValue;
+	if (itemIndex === -1) return;
+
+	// Frontend-only update for now (no API calls per request)
+	(items.value[itemIndex] as any)[field] = newValue;
+	items.value[itemIndex].updatedAt = Date.now();
+	console.log("Локально сохранено:", { itemId: item.id, field, newValue });
+}
+
+function openCreate() {
+	formError.value = null;
+	formModel.value = {
+		code: "",
+		name: "",
+		type: "material",
+		unit: "",
+		minQuantity: "0",
+		description: null,
+	};
+	showCreate.value = true;
+}
+
+function closeCreate() {
+	showCreate.value = false;
+}
+
+async function submitCreate() {
+	formError.value = null;
+	creating.value = true;
+	try {
+		// minimal validation
+		if (!formModel.value.name || !formModel.value.code) {
+			formError.value = "Код и название обязательны.";
+			return;
+		}
+
+		// create locally (frontend-only) — assign temporary id
+		const maxId = items.value.reduce((m, it) => Math.max(m, it.id), 0);
+		const now = Date.now();
+		const created: Item = {
+			id: maxId + 1,
+			code: String(formModel.value.code),
+			name: String(formModel.value.name),
+			type: (formModel.value.type as Item['type']) || 'material',
+			unit: String(formModel.value.unit || 'шт'),
+			purchasePrice: null,
+			sellPrice: null,
+			minQuantity: String(formModel.value.minQuantity || '0'),
+			description: formModel.value.description || null,
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		items.value.unshift(created);
+		showCreate.value = false;
+	} catch (e: any) {
+		formError.value = e?.message || "Не удалось создать позицию.";
+	} finally {
+		creating.value = false;
 	}
-	console.log("Сохранено:", { itemId: item.id, field, newValue });
 }
 
 onMounted(load);
@@ -107,7 +177,7 @@ onMounted(load);
 						<option value="product">Готовая продукция</option>
 					</select>
 				</label>
-				<button v-if="permissions.canEditNomenclature" class="btn btnPrimary" type="button">
+				<button v-if="permissions.canEditNomenclature" class="btn btnPrimary" type="button" @click="openCreate">
 					Создать позицию
 				</button>
 				<button class="btn" type="button" @click="load">
@@ -127,6 +197,26 @@ onMounted(load);
 				}}</router-link>
 			</template>
 		</EditableTable>
+
+		<ModalForm v-model="showCreate" title="Создать позицию">
+			<div>
+				<FormField label="Код" v-model="formModel.code" placeholder="внутренний код" />
+				<FormField label="Название" v-model="formModel.name" placeholder="наименование" />
+				<FormField label="Тип" type="select"
+					:options="[{ value: 'material', label: 'Материал' }, { value: 'product', label: 'Готовая продукция' }]"
+					v-model="formModel.type" />
+				<FormField label="Единица" v-model="formModel.unit" placeholder="шт, кг" />
+				<FormField label="Мин. остаток" v-model="formModel.minQuantity" placeholder="0" />
+				<FormField label="Описание" type="textarea" v-model="formModel.description" placeholder="необязательно" />
+				<div v-if="formError" style="color:#f06e6e;margin-top:8px">{{ formError }}</div>
+			</div>
+
+			<template #footer>
+				<button class="btn" type="button" @click="closeCreate">Отмена</button>
+				<button class="btn btnPrimary" type="button" @click="submitCreate" :disabled="creating">{{ creating ?
+					'Сохраняю...' : 'Создать' }}</button>
+			</template>
+		</ModalForm>
 	</div>
 </template>
 
