@@ -84,7 +84,7 @@ const columns = computed(() => [
 		<div class="pageHeader">
 			<h1>Документы</h1>
 			<div class="searchWrap">
-				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по номеру, автору, типу..." />
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по номеру..." />
 				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
 			</div>
 			<div class="actions">

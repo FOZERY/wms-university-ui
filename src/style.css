@@ -177,10 +177,10 @@ code {
 	align-items: center;
 	height: 40px;
 	color: CanvasText;
-	min-width: 160px;
+	min-width: 180px;
 	/* allow search to grow but stay compact */
-	flex: 0 1 260px;
-	max-width: 300px;
+	flex: 0 1 320px;
+	max-width: 360px;
 }
 
 .searchInput:focus {

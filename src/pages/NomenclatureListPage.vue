@@ -95,7 +95,7 @@ onMounted(load);
 		<div class="pageHeader">
 			<h1>Номенклатура</h1>
 			<div class="searchWrap">
-				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию или коду..." />
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по коду или названию..." />
 				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
 			</div>
 			<div class="actions">

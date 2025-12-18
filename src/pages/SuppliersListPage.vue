@@ -85,7 +85,7 @@ onMounted(load);
 		<div class="pageHeader">
 			<h1>Поставщики</h1>
 			<div class="searchWrap">
-				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию, ИНН, email или телефону..." />
+				<input v-model="searchQuery" class="searchInput" placeholder="Поиск по названию, ИНН..." />
 				<button v-if="searchQuery" class="clearButton" type="button" @click="clearSearch">×</button>
 			</div>
 			<div class="actions">

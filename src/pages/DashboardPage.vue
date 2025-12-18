@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
 import ChartCard from "../components/ChartCard.vue";
 import StatsSummary from "../components/StatsSummary.vue";
 import { useWarehouseStats } from "../composables/useWarehouseStats";
 
 const { data } = useWarehouseStats();
+const router = useRouter();
 
 const chartCardRef = ref<any>(null);
+
+function goToDocuments() {
+	router.push("/documents");
+}
+
+function goToNomenclature() {
+	router.push("/nomenclature");
+}
 const exportMenuOpen = ref(false);
 const exportMenuAbove = ref(false);
 const exportWrapperRef = ref<HTMLElement | null>(null);
@@ -105,39 +115,69 @@ const dailyChartData = computed(() => {
 	return {
 		labels,
 		datasets: [
-			{ label: "incoming", backgroundColor: "rgba(75,192,192,0.8)", data: labels.map(() => Math.floor(Math.random() * 20) + 5) },
-			{ label: "transfer", backgroundColor: "rgba(255,159,64,0.9)", data: labels.map(() => Math.floor(Math.random() * 10) + 2) },
-			{ label: "production", backgroundColor: "rgba(153,102,255,0.85)", data: labels.map(() => Math.floor(Math.random() * 8)) },
+			{
+				label: "Приход",
+				backgroundColor: "rgba(75,192,192,0.3)",
+				borderColor: "rgba(75,192,192,1)",
+				borderWidth: 2,
+				fill: true,
+				tension: 0.4,
+				data: labels.map(() => Math.floor(Math.random() * 20) + 5)
+			},
+			{
+				label: "Перемещение",
+				backgroundColor: "rgba(255,159,64,0.3)",
+				borderColor: "rgba(255,159,64,1)",
+				borderWidth: 2,
+				fill: true,
+				tension: 0.4,
+				data: labels.map(() => Math.floor(Math.random() * 10) + 2)
+			},
+			{
+				label: "Производство",
+				backgroundColor: "rgba(153,102,255,0.3)",
+				borderColor: "rgba(153,102,255,1)",
+				borderWidth: 2,
+				fill: true,
+				tension: 0.4,
+				data: labels.map(() => Math.floor(Math.random() * 8))
+			},
 		],
 	};
 });
 
-const stockChartData = computed(() => {
-	const labels = ["Склад A", "Склад B", "Склад C"];
+// Mock data: товары ниже минимального остатка
+const lowStockItems = [
+	{ id: 1, name: "Болт М8", current: 12, min: 50 },
+	{ id: 2, name: "Гайка М10", current: 8, min: 30 },
+	{ id: 3, name: "Шайба плоская", current: 5, min: 20 },
+	{ id: 4, name: "Клей ПВА", current: 2, min: 10 },
+];
+
+const lowStockChartData = computed(() => {
 	return {
-		labels,
+		labels: lowStockItems.map(i => i.name),
 		datasets: [
-			{ label: "Занято", backgroundColor: "rgba(99,132,255,0.9)", data: [120, 80, 40] },
-			{ label: "Резерв", backgroundColor: "rgba(255,205,86,0.9)", data: [20, 5, 10] },
-			{ label: "Свободно", backgroundColor: "rgba(160,160,160,0.6)", data: [30, 60, 70] },
+			{ label: "Текущий остаток", backgroundColor: "rgba(255,99,132,0.8)", data: lowStockItems.map(i => i.current) },
+			{ label: "Минимум", backgroundColor: "rgba(200,200,200,0.5)", data: lowStockItems.map(i => i.min) },
 		],
 	};
 });
 
-const moversChartData = computed(() => {
-	const labels = ["Метал 1", "Деталь 42", "Клей", "Шайба"];
-	return {
-		labels,
-		datasets: [{ label: "Перемещено (шт)", backgroundColor: "rgba(54,162,235,0.9)", data: [340, 210, 180, 120] }],
-	};
+const lowStockSummaryItems = computed(() => {
+	return lowStockItems.map(i => ({
+		id: i.id,
+		name: i.name,
+		percent: Math.round((i.current / i.min) * 100),
+	}));
 });
 
-const moversOptions = {
-	indexAxis: "y",
-	responsive: true,
-	maintainAspectRatio: false,
-	plugins: { legend: { display: false }, tooltip: { enabled: true } },
-};
+// Легенда для документов
+const docLegend = [
+	{ label: "Приход", color: "rgba(75,192,192,1)" },
+	{ label: "Перемещение", color: "rgba(255,159,64,1)" },
+	{ label: "Производство", color: "rgba(153,102,255,1)" },
+];
 
 const chartData = computed(() => {
 	const slice = data.value.slice(0, 2);
@@ -247,7 +287,9 @@ async function exportXLSX() {
 		</div>
 
 		<div class="chartsGrid">
-			<ChartCard ref="chartCardRef" :chartData="chartData" :chartOptions="chartOptions" title="Загруженность складов">
+			<!-- 1. Загруженность складов -->
+			<ChartCard ref="chartCardRef" :chartData="chartData" :chartOptions="chartOptions" title="Загруженность складов"
+				:style="{ '--chart-card-chart-height': '180px' }">
 				<template #summary>
 					<StatsSummary :items="utilization" />
 				</template>
@@ -269,17 +311,44 @@ async function exportXLSX() {
 					</div>
 				</template>
 			</ChartCard>
-			<ChartCard :chartData="dailyChartData"
-				:chartOptions="{ ...chartOptions, scales: { x: { stacked: true }, y: { beginAtZero: true } } }"
-				title="Документы — 14 дней">
+
+			<!-- 2. Документы за 14 дней -->
+			<ChartCard type="line" :chartData="dailyChartData"
+				:chartOptions="{ ...chartOptions, scales: { x: { stacked: false, grid: { display: false } }, y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,0.1)' } } } }"
+				title="Документы — 14 дней" :style="{ '--chart-card-chart-height': '180px' }">
+				<template #summary>
+					<div class="legendOnly">
+						<h4>Легенда</h4>
+						<div class="legendList">
+							<div class="legendItem" v-for="item in docLegend" :key="item.label">
+								<span class="dot" :style="{ background: item.color }"></span>
+								{{ item.label }}
+							</div>
+						</div>
+					</div>
+				</template>
 				<template #controls>
-					<BaseButton variant="default" @click.prevent="closeExportMenu">Открыть список</BaseButton>
+					<BaseButton variant="default" @click="goToDocuments">Открыть список</BaseButton>
 				</template>
 			</ChartCard>
 
-			<ChartCard :chartData="stockChartData" :chartOptions="chartOptions" title="Остатки по складам">
+			<!-- 3. Товары ниже минимума -->
+			<ChartCard :chartData="lowStockChartData"
+				:chartOptions="{ ...chartOptions, indexAxis: 'y', scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 10 } } } } }"
+				title="Товары ниже минимума" :style="{ '--chart-card-chart-height': '180px' }">
+				<template #summary>
+					<div class="legendOnly">
+						<h4>Легенда</h4>
+						<div class="legendList">
+							<div class="legendItem"><span class="dot" style="background: rgba(255,99,132,0.8)"></span> Текущий остаток
+							</div>
+							<div class="legendItem"><span class="dot" style="background: rgba(200,200,200,0.5)"></span> Минимум</div>
+						</div>
+						<p class="lowStockHint">{{ lowStockItems.length }} позиций требуют пополнения</p>
+					</div>
+				</template>
 				<template #controls>
-					<BaseButton variant="default" @click.prevent="closeExportMenu">Открыть остатки</BaseButton>
+					<BaseButton variant="default" @click="goToNomenclature">Открыть номенклатуру</BaseButton>
 				</template>
 			</ChartCard>
 		</div>
@@ -292,6 +361,7 @@ async function exportXLSX() {
 	grid-template-columns: repeat(3, 1fr);
 	gap: 12px;
 	width: 100%;
+	align-items: stretch;
 }
 
 @media (max-width: 1000px) {
@@ -347,5 +417,44 @@ async function exportXLSX() {
 .exportMenu.above {
 	top: auto;
 	bottom: calc(100% + 3px);
+}
+
+/* Legend-only summary for charts */
+.legendOnly {
+	font-size: 12px;
+}
+
+.legendOnly h4 {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.legendList {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.legendItem {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--muted);
+}
+
+.dot {
+	width: 12px;
+	height: 8px;
+	border-radius: 3px;
+	display: inline-block;
+	flex-shrink: 0;
+}
+
+.lowStockHint {
+	margin: 10px 0 0 0;
+	font-size: 11px;
+	color: rgba(255, 99, 132, 0.9);
+	font-weight: 500;
 }
 </style>
