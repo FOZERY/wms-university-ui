@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { mockDocuments } from "../shared/mocks/data";
+import { useAuthStore } from "../stores/auth";
+import { getPermissions } from "../shared/auth/permissions";
 import BaseButton from "../components/BaseButton.vue";
+import ModalForm from "../components/ModalForm.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -11,6 +15,9 @@ const document = ref<any>(null);
 const loading = ref(true);
 const editMode = ref(false);
 const draft = ref<any>(null);
+const auth = useAuthStore();
+const permissions = computed(() => getPermissions(auth.role));
+const showCancel = ref(false);
 
 onMounted(async () => {
 	// TODO: Fetch document by ID
@@ -56,6 +63,22 @@ function saveEdit() {
 	editMode.value = false;
 }
 
+function confirmCancelDocument() {
+	showCancel.value = true;
+}
+
+function performCancelDocument() {
+	if (!document.value) return;
+	// update local doc and global mock list if present
+	document.value.status = "cancelled";
+	const idx = mockDocuments.findIndex((d) => String(d.id) === String(documentId));
+	if (idx !== -1) {
+		const doc = mockDocuments[idx];
+		if (doc) doc.status = "cancelled";
+	}
+	showCancel.value = false;
+}
+
 function updateDraftItem(index: number, field: string, value: any) {
 	if (!draft.value) return;
 	const item = draft.value.items[index];
@@ -89,6 +112,8 @@ function onPriceInput(e: Event, index: number) {
 			<div class="actions" v-if="document">
 				<template v-if="!editMode">
 					<BaseButton v-if="document.status === 'draft'" variant="primary" @click="openEdit">Редактировать</BaseButton>
+					<BaseButton v-if="permissions.canCancelDocuments && document.status !== 'cancelled'" variant="default"
+						@click="confirmCancelDocument">Отменить</BaseButton>
 					<BaseButton variant="secondary">Печать</BaseButton>
 				</template>
 				<template v-else>
@@ -97,6 +122,17 @@ function onPriceInput(e: Event, index: number) {
 				</template>
 			</div>
 		</div>
+
+		<ModalForm v-model="showCancel" title="Подтвердите отмену">
+			<div>
+				<p>Вы действительно хотите отменить этот документ? Статус документа станет "cancelled".</p>
+			</div>
+			<template #footer>
+				<button class="btn" type="button" @click="showCancel = false">Отмена</button>
+				<button class="btn" type="button" style="background:#ff6b6b;color:white"
+					@click="performCancelDocument">Отменить</button>
+			</template>
+		</ModalForm>
 
 		<div v-if="loading" class="loading">Загрузка...</div>
 

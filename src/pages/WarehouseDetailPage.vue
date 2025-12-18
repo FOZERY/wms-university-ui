@@ -5,6 +5,7 @@ import ModalForm from "../components/ModalForm.vue";
 import FormField from "../components/FormField.vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
+import { mockWarehouses } from "../shared/mocks/data";
 
 const route = useRoute();
 const router = useRouter();
@@ -15,6 +16,7 @@ const loading = ref(true);
 const showEdit = ref(false);
 const saving = ref(false);
 const formModel = ref<any>({});
+const showDelete = ref(false);
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
@@ -79,6 +81,19 @@ function openEdit() {
 	showEdit.value = true;
 }
 
+function confirmDeleteWarehouse() {
+	showDelete.value = true;
+}
+
+function performDeleteWarehouse() {
+	if (!warehouse.value) return;
+	const wid = Number(warehouse.value.id);
+	const idx = mockWarehouses.findIndex((w) => String(w.id) === String(warehouse.value.id) || w.id === wid);
+	if (idx !== -1) mockWarehouses.splice(idx, 1);
+	showDelete.value = false;
+	router.back();
+}
+
 async function submitEdit() {
 	saving.value = true;
 	try {
@@ -108,6 +123,8 @@ async function submitEdit() {
 			<div class="actions">
 				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
 					@click="openEdit">Редактировать</button>
+				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
+					style="margin-left:8px;background:#ff6b6b;color:white" @click="confirmDeleteWarehouse">Удалить</button>
 			</div>
 		</div>
 
@@ -197,6 +214,19 @@ async function submitEdit() {
 				</div>
 			</div>
 		</div>
+
+		<ModalForm v-model="showDelete" title="Подтвердите удаление">
+			<div>
+				<p>Вы действительно хотите удалить склад "{{ warehouse?.name }}"? Это действие удалит локальные локальные
+					данные.
+				</p>
+			</div>
+			<template #footer>
+				<button class="btn" type="button" @click="showDelete = false">Отмена</button>
+				<button class="btn" type="button" style="background:#ff6b6b;color:white"
+					@click="performDeleteWarehouse">Удалить</button>
+			</template>
+		</ModalForm>
 	</div>
 </template>
 

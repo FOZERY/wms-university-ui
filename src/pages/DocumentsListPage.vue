@@ -4,6 +4,7 @@ import useDebounce from "../composables/useDebounce";
 import BaseButton from "../components/BaseButton.vue";
 import EditableTable from "../components/EditableTable.vue";
 import { mockDocuments } from "../shared/mocks/data";
+import ModalForm from "../components/ModalForm.vue";
 import { useAuthStore } from "../stores/auth";
 
 const auth = useAuthStore();
@@ -37,6 +38,21 @@ function printDocument(d: DocRow) {
 	} catch (e) {
 		// ignore
 	}
+}
+
+// cancel flow (detail page handles confirmation; keep a simple performCancel helper for reuse)
+const showCancel = ref(false);
+const cancelTarget = ref<number | null>(null);
+
+function performCancel() {
+	if (cancelTarget.value == null) return;
+	const idx = mockDocuments.findIndex((d) => d.id === cancelTarget.value);
+	if (idx !== -1) {
+		const doc = mockDocuments[idx];
+		if (doc) doc.status = "cancelled";
+	}
+	showCancel.value = false;
+	cancelTarget.value = null;
 }
 
 function clearSearch() {
@@ -113,8 +129,20 @@ const columns = computed(() => [
 				<button class="btn" type="button" @click="printDocument(item)">
 					Печать
 				</button>
+
 			</template>
 		</EditableTable>
+
+		<ModalForm v-model="showCancel" title="Подтвердите отмену документа">
+			<div>
+				<p>Вы действительно хотите отменить документ? Статус документа станет "cancelled".</p>
+			</div>
+			<template #footer>
+				<button class="btn" type="button" @click="showCancel = false">Отмена</button>
+				<button class="btn" type="button" style="background:#ff6b6b;color:white"
+					@click="performCancel">Отменить</button>
+			</template>
+		</ModalForm>
 	</div>
 </template>
 

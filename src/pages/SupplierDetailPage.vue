@@ -5,6 +5,7 @@ import ModalForm from "../components/ModalForm.vue";
 import FormField from "../components/FormField.vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
+import { mockSuppliers } from "../shared/mocks/data";
 
 const route = useRoute();
 const router = useRouter();
@@ -15,6 +16,7 @@ const loading = ref(true);
 const showEdit = ref(false);
 const saving = ref(false);
 const formModel = ref<any>({});
+const showDelete = ref(false);
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
@@ -63,6 +65,19 @@ function openEdit() {
 	showEdit.value = true;
 }
 
+function confirmDeleteSupplier() {
+	showDelete.value = true;
+}
+
+function performDeleteSupplier() {
+	if (!supplier.value) return;
+	const sid = Number(supplier.value.id);
+	const idx = mockSuppliers.findIndex((s) => String(s.id) === String(supplier.value.id) || s.id === sid);
+	if (idx !== -1) mockSuppliers.splice(idx, 1);
+	showDelete.value = false;
+	router.back();
+}
+
 async function submitEdit() {
 	saving.value = true;
 	try {
@@ -102,6 +117,8 @@ async function submitEdit() {
 			<div class="actions">
 				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
 					@click="openEdit">Редактировать</button>
+				<button v-if="permissions.canEditNomenclature" class="btn" type="button"
+					style="margin-left:8px;background:#ff6b6b;color:white" @click="confirmDeleteSupplier">Удалить</button>
 			</div>
 		</div>
 
@@ -173,6 +190,17 @@ async function submitEdit() {
 				<button class="btn" type="button" @click="showEdit = false">Отмена</button>
 				<button class="btn btnPrimary" type="button" @click="submitEdit" :disabled="saving">{{ saving ? 'Сохраняю...' :
 					'Сохранить' }}</button>
+			</template>
+		</ModalForm>
+
+		<ModalForm v-model="showDelete" title="Подтвердите удаление">
+			<div>
+				<p>Вы действительно хотите удалить поставщика "{{ supplier?.name }}"? Это действие необратимо.</p>
+			</div>
+			<template #footer>
+				<button class="btn" type="button" @click="showDelete = false">Отмена</button>
+				<button class="btn" type="button" style="background:#ff6b6b;color:white"
+					@click="performDeleteSupplier">Удалить</button>
 			</template>
 		</ModalForm>
 	</div>
