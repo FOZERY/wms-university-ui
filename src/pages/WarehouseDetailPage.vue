@@ -8,6 +8,10 @@ import { getPermissions } from "../shared/auth/permissions";
 import { warehousesApi } from "../shared/api/warehouses";
 import { documentsApi } from "../shared/api/documents";
 import { stockApi } from "../shared/api/stock";
+import {
+  mapDocumentTypeToRu,
+  mapDocumentStatusToRu,
+} from "../shared/utils/format";
 
 const route = useRoute();
 const router = useRouter();
@@ -180,21 +184,11 @@ async function submitEdit() {
         <h1>{{ warehouse?.name || "Склад" }}</h1>
       </div>
       <div class="actions">
-        <button
-          v-if="permissions.canEditNomenclature"
-          class="btn"
-          type="button"
-          @click="openEdit"
-        >
+        <button v-if="permissions.canEditNomenclature" class="btn" type="button" @click="openEdit">
           Редактировать
         </button>
-        <button
-          v-if="permissions.canEditNomenclature"
-          class="btn"
-          type="button"
-          style="margin-left: 8px; background: #ff6b6b; color: white"
-          @click="confirmDeleteWarehouse"
-        >
+        <button v-if="permissions.canEditNomenclature" class="btn" type="button"
+          style="margin-left: 8px; background: #ff6b6b; color: white" @click="confirmDeleteWarehouse">
           Удалить
         </button>
       </div>
@@ -202,34 +196,16 @@ async function submitEdit() {
 
     <ModalForm v-model="showEdit" title="Редактировать склад">
       <div>
-        <FormField
-          label="Название"
-          v-model="formModel.name"
-          placeholder="Название склада"
-        />
-        <FormField
-          label="Адрес"
-          type="textarea"
-          v-model="formModel.address"
-          placeholder="улица, дом"
-        />
-        <FormField
-          label="Вместимость"
-          v-model="formModel.capacity"
-          placeholder="число (например, 500)"
-        />
+        <FormField label="Название" v-model="formModel.name" placeholder="Название склада" />
+        <FormField label="Адрес" type="textarea" v-model="formModel.address" placeholder="улица, дом" />
+        <FormField label="Вместимость" v-model="formModel.capacity" placeholder="число (например, 500)" />
       </div>
 
       <template #footer>
         <button class="btn" type="button" @click="showEdit = false">
           Отмена
         </button>
-        <button
-          class="btn btnPrimary"
-          type="button"
-          @click="submitEdit"
-          :disabled="saving"
-        >
+        <button class="btn btnPrimary" type="button" @click="submitEdit" :disabled="saving">
           {{ saving ? "Сохраняю..." : "Сохранить" }}
         </button>
       </template>
@@ -320,11 +296,11 @@ async function submitEdit() {
                 <td>
                   <router-link :to="`/documents/${doc.id}`" class="link">{{
                     doc.number
-                  }}</router-link>
+                    }}</router-link>
                 </td>
-                <td>{{ doc.type }}</td>
+                <td>{{ mapDocumentTypeToRu(doc.type) }}</td>
                 <td>{{ doc.date }}</td>
-                <td>{{ doc.status }}</td>
+                <td>{{ mapDocumentStatusToRu(doc.status) }}</td>
               </tr>
             </tbody>
           </table>
@@ -343,13 +319,8 @@ async function submitEdit() {
         <button class="btn" type="button" @click="showDelete = false">
           Отмена
         </button>
-        <button
-          class="btn"
-          type="button"
-          style="background: #ff6b6b; color: white"
-          @click="performDeleteWarehouse"
-          :disabled="deleting"
-        >
+        <button class="btn" type="button" style="background: #ff6b6b; color: white" @click="performDeleteWarehouse"
+          :disabled="deleting">
           {{ deleting ? "Удаляю..." : "Удалить" }}
         </button>
       </template>

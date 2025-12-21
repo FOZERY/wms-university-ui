@@ -5,6 +5,7 @@ import { useAuthStore } from "../stores/auth";
 const auth = useAuthStore();
 
 const me = computed(() => auth.me);
+import { mapRoleToRu } from "../shared/utils/format";
 </script>
 
 <template>
@@ -18,7 +19,7 @@ const me = computed(() => auth.me);
 				<strong>ФИО:</strong> {{ me.lastname }} {{ me.firstname }}
 				{{ me.middlename || "" }}
 			</div>
-			<div><strong>Роль:</strong> {{ me.role }}</div>
+			<div><strong>Роль:</strong> {{ mapRoleToRu(me.role) }}</div>
 		</div>
 	</div>
 </template>

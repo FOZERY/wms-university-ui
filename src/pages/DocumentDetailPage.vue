@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { mockDocuments } from "../shared/mocks/data";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
 import BaseButton from "../components/BaseButton.vue";
 import ModalForm from "../components/ModalForm.vue";
+import { documentsApi } from "../shared/api/documents";
+import { nomenclatureApi } from "../shared/api/nomenclature";
+import { suppliersApi } from "../shared/api/suppliers";
+import { warehousesApi } from "../shared/api/warehouses";
+import { mapDocumentTypeToRu, mapDocumentStatusToRu } from "../shared/utils/format";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,26 +23,81 @@ const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
 const showCancel = ref(false);
 
-onMounted(async () => {
-	// TODO: Fetch document by ID
-	// document.value = await api.documents.getById(documentId);
+const authorName = computed(() => {
+	const a = document.value?.author;
+	if (!a) return document.value?.userId || "-";
+	// format: Lastname Firstname Middlename
+	return `${a.lastname || ""} ${a.firstname || ""}${a.middlename ? " " + a.middlename : ""}`.trim();
+});
 
-	// Mock data for now — assign synchronously (no artificial delay)
-	document.value = {
-		id: documentId,
-		number: "ПР-0001",
-		type: "incoming",
-		status: "draft",
-		date: "2025-12-13",
-		author: "storeKeeper",
-		supplier: { id: 1, name: 'ООО "Поставщик"' },
-		warehouseTo: { id: 1, name: "Основной склад" },
-		items: [
-			{ id: 1, name: "Гвозди", quantity: 100, unit: "кг", price: 50 },
-			{ id: 2, name: "Доски", quantity: 20, unit: "шт", price: 500 },
-		],
-	};
-	loading.value = false;
+async function loadDocument() {
+	loading.value = true;
+	try {
+		const resp = await documentsApi.getById(Number(documentId));
+		const data = (resp && (resp as any).data) || resp || null;
+		if (!data) throw new Error("Документ не найден");
+
+		// enrich supplier/warehouses if backend returned only ids
+		if (!data.supplier && data.supplierId) {
+			try {
+				const s = await suppliersApi.getById(Number(data.supplierId));
+				data.supplier = { id: s.id, name: s.name };
+			} catch (err) {
+				// ignore
+			}
+		}
+
+		if (!data.warehouseTo && data.warehouseToId) {
+			try {
+				const w = await warehousesApi.getById(Number(data.warehouseToId));
+				data.warehouseTo = { id: w.id, name: w.name };
+			} catch (err) { }
+		}
+
+		if (!data.warehouseFrom && data.warehouseFromId) {
+			try {
+				const w = await warehousesApi.getById(Number(data.warehouseFromId));
+				data.warehouseFrom = { id: w.id, name: w.name };
+			} catch (err) { }
+		}
+
+		// enrich items with nomenclature names/units when possible
+		if (Array.isArray(data.items) && data.items.length > 0) {
+			await Promise.all(
+				data.items.map(async (it: any) => {
+					// backend may return nested `item` object
+					if (it.item) {
+						it.itemId = it.itemId || it.item.id;
+						it.itemName = it.itemName || it.item.name;
+						it.unit = it.unit || it.item.unit;
+					} else if (!it.itemName && it.itemId) {
+						try {
+							const ni = await nomenclatureApi.getById(Number(it.itemId));
+							it.itemName = ni.name;
+							it.unit = it.unit || ni.unit;
+						} catch (err) {
+							// ignore per-item fetch failures
+						}
+					}
+					// normalize quantity/price to displayable values
+					if (it.quantity == null) it.quantity = "0";
+					if (it.price == null) it.price = null;
+				})
+			);
+		}
+
+		document.value = data;
+	} catch (e: any) {
+		console.error(e);
+		alert(e?.message || "Не удалось загрузить документ");
+		router.back();
+	} finally {
+		loading.value = false;
+	}
+}
+
+onMounted(() => {
+	loadDocument();
 });
 
 const goBack = () => router.back();
@@ -69,14 +128,61 @@ function confirmCancelDocument() {
 
 function performCancelDocument() {
 	if (!document.value) return;
-	// update local doc and global mock list if present
-	document.value.status = "cancelled";
-	const idx = mockDocuments.findIndex((d) => String(d.id) === String(documentId));
-	if (idx !== -1) {
-		const doc = mockDocuments[idx];
-		if (doc) doc.status = "cancelled";
+	// call backend to update status, then reload
+	(async () => {
+		try {
+			await documentsApi.updateStatus(Number(document.value.id), 'cancelled');
+			showCancel.value = false;
+			await loadDocument();
+		} catch (err) {
+			alert('Не удалось отменить документ');
+		}
+	})();
+}
+
+async function printDocument() {
+	if (!document.value) return;
+	try {
+		const resp = await documentsApi.print(document.value.id);
+		const blob = (resp && (resp as any).data) || resp;
+		const cd = resp?.headers?.["content-disposition"] || resp?.headers?.["Content-Disposition"] || "";
+
+		function parseFilename(cdHeader: string) {
+			if (!cdHeader) return undefined;
+			const m1 = /filename\*=UTF-8''([^;\n\r]+)/i.exec(cdHeader);
+			if (m1) return decodeURIComponent(m1[1]);
+			const m2 = /filename="?([^";]+)"?/i.exec(cdHeader);
+			if (m2) return m2[1];
+			return undefined;
+		}
+
+		const filename = parseFilename(cd) || `document-${document.value.id}.pdf`;
+		const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob], { type: 'application/pdf' }));
+		const win = window.open(url);
+		if (!win) {
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			setTimeout(() => URL.revokeObjectURL(url), 5000);
+			return;
+		}
+		const tryPrint = () => {
+			try {
+				win.focus();
+				win.print();
+			} catch (e) {
+				setTimeout(tryPrint, 500);
+			}
+		};
+		setTimeout(tryPrint, 500);
+		setTimeout(() => URL.revokeObjectURL(url), 10000);
+	} catch (err) {
+		console.error(err);
+		alert("Не удалось сформировать печать");
 	}
-	showCancel.value = false;
 }
 
 function updateDraftItem(index: number, field: string, value: any) {
@@ -114,7 +220,7 @@ function onPriceInput(e: Event, index: number) {
 					<BaseButton v-if="document.status === 'draft'" variant="primary" @click="openEdit">Редактировать</BaseButton>
 					<BaseButton v-if="permissions.canCancelDocuments && document.status !== 'cancelled'" variant="default"
 						@click="confirmCancelDocument">Отменить</BaseButton>
-					<BaseButton variant="secondary">Печать</BaseButton>
+					<BaseButton variant="secondary" @click="printDocument">Печать</BaseButton>
 				</template>
 				<template v-else>
 					<BaseButton variant="secondary" @click="cancelEdit">Отмена</BaseButton>
@@ -142,13 +248,11 @@ function onPriceInput(e: Event, index: number) {
 				<div class="infoGrid">
 					<div class="infoItem">
 						<span class="label">Тип:</span>
-						<span class="value">{{ document.type }}</span>
+						<span class="value">{{ mapDocumentTypeToRu(document.type) }}</span>
 					</div>
 					<div class="infoItem">
 						<span class="label">Статус:</span>
-						<span class="value status" :class="document.status">{{
-							document.status
-						}}</span>
+						<span class="value status" :class="document.status">{{ mapDocumentStatusToRu(document.status) }}</span>
 					</div>
 					<div class="infoItem">
 						<span class="label">Дата:</span>
@@ -157,7 +261,7 @@ function onPriceInput(e: Event, index: number) {
 					</div>
 					<div class="infoItem">
 						<span class="label">Автор:</span>
-						<span class="value">{{ document.author }}</span>
+						<span class="value">{{ authorName }}</span>
 					</div>
 					<div class="infoItem" v-if="document.supplier">
 						<span class="label">Поставщик:</span>
@@ -186,10 +290,11 @@ function onPriceInput(e: Event, index: number) {
 						</tr>
 					</thead>
 					<tbody>
-						<tr v-for="(item, index) in (editMode ? draft.items : document.items)" :key="item.id">
+						<tr v-for="(item, index) in (editMode ? draft.items : document.items)" :key="item.id || item.itemId">
 							<td>{{ index + 1 }}</td>
 							<td>
-								<router-link :to="`/items/${item.id}`" class="link">{{ item.name }}</router-link>
+								<router-link :to="`/items/${item.itemId || item.id}`" class="link">{{ item.itemName || item.name ||
+									item.itemId || item.id }}</router-link>
 							</td>
 							<td v-if="!editMode">{{ item.quantity }}</td>
 							<td v-else>
@@ -201,7 +306,7 @@ function onPriceInput(e: Event, index: number) {
 							<td v-else>
 								<input type="number" min="0" step="0.01" :value="item.price" @input="(e) => onPriceInput(e, index)" />
 							</td>
-							<td>{{ (item.quantity * item.price) || 0 }} ₽</td>
+							<td>{{ (Number(item.quantity) || 0) * (Number(item.price) || 0) }} ₽</td>
 						</tr>
 					</tbody>
 				</table>

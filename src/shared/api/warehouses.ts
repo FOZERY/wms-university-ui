@@ -5,6 +5,8 @@ export type WarehousesListQuery = {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	// optional multi-column sort
+	sort?: Record<string, 'asc' | 'desc'>;
 };
 
 export const warehousesApi = {

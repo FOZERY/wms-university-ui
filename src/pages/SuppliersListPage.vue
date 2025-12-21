@@ -65,10 +65,10 @@ async function load() {
 
     // if we have a sort rule, send it as deep object (axios will serialize as sort[name]=asc)
     if (sortRules.value.length > 0) {
-      // build sort object taking first rule (primary sort)
-      const primary = sortRules.value[0];
-      // @ts-ignore - we'll pass sort dynamically
-      (query as any).sort = { [String(primary.field)]: primary.direction };
+      const sortObj: Record<string, "asc" | "desc"> = {};
+      for (const r of sortRules.value) sortObj[String(r.field)] = r.direction;
+      // @ts-ignore - pass dynamic sort
+      (query as any).sort = sortObj;
     }
 
     suppliers.value = await suppliersApi.list(query);
@@ -209,6 +209,7 @@ async function handleUpdate(
       :data="displayedSuppliers"
       row-key="id"
       :can-edit="permissions.canEditNomenclature"
+      :sort="sortRules"
       :rowLink="(item) => `/suppliers/${item.id}`"
       @sort="onTableSort"
       @update="handleUpdate"

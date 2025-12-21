@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import EditableTable from "../components/EditableTable.vue";
 import useDebounce from "../composables/useDebounce";
 import type { Item } from "../shared/api/types";
+import { nomenclatureApi, NomenclatureListQuery } from "../shared/api/nomenclature";
 import { getPermissions } from "../shared/auth/permissions";
-import { mockItems } from "../shared/mocks/data";
 import { useAuthStore } from "../stores/auth";
 import ModalForm from "../components/ModalForm.vue";
 import FormField from "../components/FormField.vue";
@@ -35,33 +35,18 @@ const typeFilter = ref<TypeFilter>("all");
 const searchQuery = ref("");
 const debouncedSearch = useDebounce(searchQuery, 250);
 
+const sortRules = ref<Array<{ field: keyof Item; direction: "asc" | "desc" }>>([]);
+
 function clearSearch() {
 	searchQuery.value = "";
 	try {
 		debouncedSearch.value = "";
 	} catch { }
 }
-function mapItemTypeToRu(type: Item["type"]): string {
-	return type === "material" ? "Материал" : "Готовая продукция";
-}
+import { mapItemTypeToRu } from "../shared/utils/format";
 
-const filteredItems = computed(() => {
-	if (typeFilter.value === "all") return items.value;
-	return items.value.filter((it) => it.type === typeFilter.value);
-});
-
-const displayedItems = computed(() => {
-	const q = debouncedSearch.value.trim().toLowerCase();
-	if (!q) return filteredItems.value;
-	return filteredItems.value.filter((it) => {
-		return (
-			String(it.name).toLowerCase().includes(q) ||
-			String(it.code || "")
-				.toLowerCase()
-				.includes(q)
-		);
-	});
-});
+// when using server-side list, displayed items are whatever server returns
+const displayedItems = computed(() => items.value);
 
 const columns = computed(() => [
 	{ key: "id" as keyof Item, label: "ID", width: "60px" },
@@ -87,25 +72,52 @@ async function load() {
 	error.value = null;
 
 	try {
-		// keep forms frontend-first for now — use mock data source
-		items.value = mockItems;
+		const query: NomenclatureListQuery = {
+			// reasonable page size for list view
+			limit: 50,
+			offset: 0,
+		};
+
+		const q = debouncedSearch.value.trim();
+		if (q) query.search = q;
+
+		if (typeFilter.value !== "all") query.type = typeFilter.value as Item['type'];
+
+		if (sortRules.value.length > 0) {
+			// build full sort object from all active rules (multi-column sort)
+			const sortObj: Record<string, "asc" | "desc"> = {};
+			for (const r of sortRules.value) {
+				sortObj[String(r.field)] = r.direction;
+			}
+			// @ts-ignore allow dynamic sort object
+			(query as any).sort = sortObj;
+		}
+
+		items.value = await nomenclatureApi.list(query);
 	} catch (e) {
+		console.error(e);
 		error.value = "Не удалось загрузить номенклатуру.";
 	} finally {
 		isLoading.value = false;
 	}
 }
 
-function handleUpdate(item: Item, field: keyof Item, newValue: any) {
-	const itemIndex = items.value.findIndex((it) => it.id === item.id);
-	if (itemIndex === -1) return;
+function onTableSort(rules: Array<{ field: keyof Item; direction: "asc" | "desc" }>) {
+	// debug: log incoming sort rules
+	try { console.log('NomenclatureListPage.onTableSort', JSON.parse(JSON.stringify(rules))); } catch {}
+	sortRules.value = rules;
+	load();
+}
 
-	// Frontend-only update for now (no API calls per request)
-	if (itemIndex !== -1) {
-		(items.value[itemIndex] as any)[field] = newValue;
-		if (items.value[itemIndex]) items.value[itemIndex].updatedAt = Date.now();
+async function handleUpdate(item: Item, field: keyof Item, newValue: any) {
+	if (field === 'id') return;
+	try {
+		const payload: any = { [String(field)]: newValue };
+		await nomenclatureApi.patch(item.id, payload);
+		await load();
+	} catch (e: any) {
+		alert(e?.response?.data?.message || e?.message || 'Не удалось сохранить');
 	}
-	console.log("Локально сохранено:", { itemId: item.id, field, newValue });
 }
 
 
@@ -143,46 +155,46 @@ async function submitCreate() {
 		}
 
 		if (isEditing.value && editingId.value != null) {
-			// apply edit locally
-			const idx = items.value.findIndex((it) => it.id === editingId.value);
-			if (idx !== -1) {
-				const now = Date.now();
-				items.value[idx] = {
-					...items.value[idx],
+			// send PATCH to backend
+			try {
+				const payload: any = {
 					code: String(formModel.value.code),
 					name: String(formModel.value.name),
 					type: (formModel.value.type as Item['type']) || 'material',
 					unit: String(formModel.value.unit || 'шт'),
 					minQuantity: String(formModel.value.minQuantity || '0'),
 					description: formModel.value.description || null,
-					updatedAt: now,
-				} as Item;
+				};
+				await nomenclatureApi.patch(editingId.value, payload);
+				await load();
+				showCreate.value = false;
+				isEditing.value = false;
+				editingId.value = null;
+				return;
+			} catch (e: any) {
+				formError.value = e?.response?.data?.message || e?.message || 'Не удалось сохранить изменения.';
+				return;
 			}
-			showCreate.value = false;
-			isEditing.value = false;
-			editingId.value = null;
-			return;
 		}
 
-		// create locally (frontend-only) — assign temporary id
-		const maxId = items.value.reduce((m, it) => Math.max(m, it.id), 0);
-		const now = Date.now();
-		const created: Item = {
-			id: maxId + 1,
-			code: String(formModel.value.code),
-			name: String(formModel.value.name),
-			type: (formModel.value.type as Item['type']) || 'material',
-			unit: String(formModel.value.unit || 'шт'),
-			purchasePrice: null,
-			sellPrice: null,
-			minQuantity: String(formModel.value.minQuantity || '0'),
-			description: formModel.value.description || null,
-			createdAt: now,
-			updatedAt: now,
-		};
-
-		items.value.unshift(created);
-		showCreate.value = false;
+		// create on backend
+		try {
+			const payload: any = {
+				code: String(formModel.value.code),
+				name: String(formModel.value.name),
+				type: (formModel.value.type as Item['type']) || 'material',
+				unit: String(formModel.value.unit || 'шт'),
+				minQuantity: String(formModel.value.minQuantity || '0'),
+				description: formModel.value.description || null,
+			};
+			const res = await nomenclatureApi.create(payload);
+			// reload list to show created item (server will return assigned id)
+			await load();
+			showCreate.value = false;
+		} catch (e: any) {
+			formError.value = e?.response?.data?.message || e?.message || 'Не удалось создать позицию.';
+			return;
+		}
 	} catch (e: any) {
 		formError.value = e?.message || "Не удалось создать позицию.";
 	} finally {
@@ -191,6 +203,10 @@ async function submitCreate() {
 }
 
 onMounted(load);
+
+// reload when search/type changes
+watch(debouncedSearch, () => load());
+watch(typeFilter, () => load());
 </script>
 
 <template>
@@ -223,7 +239,7 @@ onMounted(load);
 		<p v-else-if="error">{{ error }}</p>
 
 		<EditableTable v-else :columns="columns" :data="displayedItems" row-key="id"
-			:rowLink="(item) => `/items/${item.id}`" @update="handleUpdate">
+			:rowLink="(item) => `/items/${item.id}`" :can-edit="permissions.canEditNomenclature" :sort="sortRules" @sort="onTableSort" @update="handleUpdate">
 			<template #cell-name="{ item }">
 				{{ item.name }}
 			</template>

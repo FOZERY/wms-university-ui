@@ -33,6 +33,7 @@ const columns = computed(() => [
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const warehouses = ref<Warehouse[]>([]);
+const sortRules = ref<Array<{ field: keyof Warehouse; direction: "asc" | "desc" }>>([]);
 const searchQuery = ref("");
 const debouncedSearch = useDebounce(searchQuery, 250);
 
@@ -43,6 +44,12 @@ async function load() {
     const q: WarehousesListQuery = { limit: 30, offset: 0 };
     const s = debouncedSearch.value.trim();
     if (s) q.search = s;
+    if (sortRules.value.length > 0) {
+      const sortObj: Record<string, "asc" | "desc"> = {};
+      for (const r of sortRules.value) sortObj[String(r.field)] = r.direction;
+      // @ts-ignore
+      (q as any).sort = sortObj;
+    }
     warehouses.value = await warehousesApi.list(q);
   } catch (e) {
     console.error(e);
@@ -55,6 +62,10 @@ async function load() {
 const displayedWarehouses = computed(() => warehouses.value);
 
 watch(debouncedSearch, () => load());
+function onTableSort(rules: Array<{ field: keyof Warehouse; direction: "asc" | "desc" }>) {
+  sortRules.value = rules;
+  load();
+}
 onMounted(load);
 
 async function handleUpdate(
@@ -155,6 +166,8 @@ function clearSearch() {
       :data="displayedWarehouses"
       row-key="id"
       :can-edit="permissions.canEditNomenclature"
+      :sort="sortRules"
+      @sort="onTableSort"
       @update="handleUpdate"
       :rowLink="(item) => `/warehouses/${item.id}`"
     >

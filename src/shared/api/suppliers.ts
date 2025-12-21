@@ -5,6 +5,8 @@ export type SuppliersListQuery = {
 	limit?: number;
 	offset?: number;
 	search?: string;
+	// sort object, e.g. { name: 'asc', id: 'desc' }
+	sort?: Record<string, 'asc' | 'desc'>;
 };
 
 export const suppliersApi = {

@@ -1,21 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
-
+import { nomenclatureApi } from "../shared/api/nomenclature";
+import { suppliersApi } from "../shared/api/suppliers";
+import { warehousesApi } from "../shared/api/warehouses";
+import { documentsApi } from "../shared/api/documents";
+import type { Item, Supplier, Warehouse } from "../shared/api/types";
 const route = useRoute();
 const router = useRouter();
-const isNew = route.path.includes("/new");
 
-type DocForm = {
-	type: string;
-	date?: string;
-	warehouseFromId: number | null;
-	warehouseToId: number | null;
-	supplierId: number | null;
-	comment: string;
-	items: any[];
-};
+const isNew = computed(() => String(route.params.id || '') === 'new' || !route.params.id);
 
 const form = ref<DocForm>({
 	type: "incoming",
@@ -27,35 +22,147 @@ const form = ref<DocForm>({
 	items: [] as any[],
 });
 
+const itemsList = ref<Item[]>([]);
+const suppliersList = ref<Supplier[]>([]);
+const warehousesList = ref<Warehouse[]>([]);
+
+const availableUnits = computed(() => {
+	const set = new Set<string>();
+	for (const it of itemsList.value) if (it.unit) set.add(it.unit);
+	// ensure common units available
+	['шт', 'кг', 'л'].forEach(u => set.add(u));
+	return Array.from(set);
+});
+
+function isWeightUnit(unit: string | null | undefined) {
+	if (!unit) return false;
+	const s = String(unit).toLowerCase();
+	return s.includes('kg') || s.includes('кг') || s.includes('г') || s.includes('л') || s.includes('л');
+}
+
+function onItemSelect(index: number) {
+	const row = form.value.items[index];
+	if (!row) return;
+	const sel = itemsList.value.find(i => i.id === Number(row.itemId));
+	if (sel && sel.unit) {
+		row.unit = sel.unit;
+	}
+}
+
 const loading = ref(false);
+const headerErrors = ref<Record<string, string>>({});
+const itemsErrors = ref<Record<number, Record<string, string>>>({});
+
+function clearErrors() {
+	headerErrors.value = {};
+	itemsErrors.value = {};
+}
+
+function validateForm(): boolean {
+	clearErrors();
+
+	const type = form.value.type;
+
+	// header validations per type
+	if (!form.value.items || form.value.items.length === 0) {
+		headerErrors.value.general = 'Добавьте хотя бы одну позицию';
+	}
+
+	if (type === 'incoming') {
+		if (form.value.supplierId == null) headerErrors.value.supplier = 'Поставщик обязателен для приходного документа';
+		if (form.value.warehouseToId == null) headerErrors.value.warehouseTo = 'Склад получатель обязателен для приходного документа';
+	}
+
+	if (type === 'transfer') {
+		if (form.value.warehouseFromId == null) headerErrors.value.warehouseFrom = 'Склад отправитель обязателен для перемещения';
+		if (form.value.warehouseToId == null) headerErrors.value.warehouseTo = 'Склад получатель обязателен для перемещения';
+		if (form.value.warehouseFromId != null && form.value.warehouseToId != null && form.value.warehouseFromId === form.value.warehouseToId) headerErrors.value.warehouses = 'Склады отправитель и получатель не должны совпадать';
+	}
+
+	if (type === 'production') {
+		if (form.value.warehouseFromId == null) headerErrors.value.warehouseFrom = 'Склад списания обязателен для производства';
+		if (form.value.warehouseToId == null) headerErrors.value.warehouseTo = 'Склад приходования обязателен для производства';
+	}
+
+	// items validation
+	form.value.items.forEach((row, idx) => {
+		const rowErr: Record<string, string> = {};
+		if (row.itemId == null) rowErr.item = 'Выберите номенклатуру';
+		const q = Number(row.quantity);
+		if (!isFinite(q) || q <= 0) rowErr.quantity = 'Количество должно быть > 0';
+		if (type === 'production' && !row.direction) rowErr.direction = 'Укажите направление для позиции в производстве';
+		if (Object.keys(rowErr).length > 0) itemsErrors.value[idx] = rowErr;
+	});
+
+	return Object.keys(headerErrors.value).length === 0 && Object.keys(itemsErrors.value).length === 0;
+}
+
+const isFormValid = computed(() => validateForm());
 
 onMounted(async () => {
-	if (!isNew) {
-		loading.value = true;
-		// Mock fetch existing - synchronous (no artificial delay)
-		form.value = {
-			type: "incoming",
-			date: "2025-12-13",
-			warehouseFromId: null,
-			warehouseToId: 1,
-			supplierId: 1,
-			comment: "Тестовый документ",
-			items: [{ itemId: 1, name: "Гвозди", quantity: 100, unit: "кг" }],
-		};
+	loading.value = true;
+	try {
+		// load selects data for creation/edit
+		const [noms, sups, whs] = await Promise.all([
+			nomenclatureApi.list({ limit: 100 }),
+			suppliersApi.list({ limit: 100 }),
+			warehousesApi.list({ limit: 100 }),
+		]);
+		itemsList.value = noms;
+		suppliersList.value = sups;
+		warehousesList.value = whs;
+
+		if (!isNew.value) {
+			// TODO: load existing document when editing (not implemented)
+		}
+	} catch (e) {
+		console.error(e);
+		alert("Не удалось загрузить справочники для создания документа");
+	} finally {
 		loading.value = false;
 	}
 });
 
 const save = async () => {
-	// TODO: API call
-	alert("Сохранено (mock)");
-	router.push("/documents");
+	// basic validation
+	if (!form.value.items || form.value.items.length === 0) {
+		alert("Добавьте хотя бы одну позицию");
+		return;
+	}
+
+	// build payload — omit optional fields when not provided (do not send null)
+	const payload: any = {
+		type: form.value.type,
+		date: form.value.date,
+		items: form.value.items.map((it: any) => ({
+			itemId: Number(it.itemId),
+			quantity: String(it.quantity),
+			...(it.direction ? { direction: it.direction } : {}),
+		})),
+	};
+
+	if (form.value.warehouseFromId != null) payload.warehouseFromId = Number(form.value.warehouseFromId);
+	if (form.value.warehouseToId != null) payload.warehouseToId = Number(form.value.warehouseToId);
+	if (form.value.supplierId != null) payload.supplierId = Number(form.value.supplierId);
+	if (form.value.comment && String(form.value.comment).trim().length > 0) payload.comment = String(form.value.comment).trim();
+
+	try {
+		loading.value = true;
+		const resp = await documentsApi.create(payload);
+		const created = (resp && (resp as any).data) || resp;
+		router.push(`/documents/${created.id}`);
+	} catch (e) {
+		console.error(e);
+		alert("Не удалось создать документ");
+	} finally {
+		loading.value = false;
+	}
 };
 
 const cancel = () => router.back();
 
 const addItem = () => {
-	form.value.items.push({ itemId: null, quantity: 1, unit: "шт" });
+	form.value.items.push({ itemId: null, quantity: 1, unit: itemsList.value[0]?.unit || 'шт', direction: undefined });
 };
 
 const removeItem = (index: number) => {
@@ -97,30 +204,30 @@ const removeItem = (index: number) => {
 
 					<div class="formGroup" v-if="form.type === 'incoming'">
 						<label>Поставщик</label>
-						<select v-model="form.supplierId">
-							<option :value="1">ООО "Поставщик"</option>
-							<option :value="2">ИП Иванов</option>
+						<select v-model.number="form.supplierId">
+							<option :value="null">Выберите</option>
+							<option v-for="s in suppliersList" :key="s.id" :value="s.id">{{ s.name }}</option>
 						</select>
+						<div v-if="headerErrors.supplier" class="fieldError">{{ headerErrors.supplier }}</div>
 					</div>
 
 					<div class="formGroup" v-if="['transfer', 'production'].includes(form.type)">
 						<label>Склад отправитель (Списание)</label>
-						<select v-model="form.warehouseFromId">
-							<option :value="1">Основной склад</option>
-							<option :value="2">Цех №1</option>
+						<select v-model.number="form.warehouseFromId">
+							<option :value="null">Выберите</option>
+							<option v-for="w in warehousesList" :key="w.id" :value="w.id">{{ w.name }}</option>
 						</select>
+						<div v-if="headerErrors.warehouseFrom" class="fieldError">{{ headerErrors.warehouseFrom }}</div>
 					</div>
 
-					<div class="formGroup" v-if="
-						['incoming', 'transfer', 'production'].includes(
-							form.type
-						)
-					">
+					<div class="formGroup" v-if="['incoming', 'transfer', 'production'].includes(form.type)">
 						<label>Склад получатель (Приход)</label>
-						<select v-model="form.warehouseToId">
-							<option :value="1">Основной склад</option>
-							<option :value="2">Цех №1</option>
+						<select v-model.number="form.warehouseToId">
+							<option :value="null">Выберите</option>
+							<option v-for="w in warehousesList" :key="w.id" :value="w.id">{{ w.name }}</option>
 						</select>
+						<div v-if="headerErrors.warehouseTo" class="fieldError">{{ headerErrors.warehouseTo }}</div>
+						<div v-if="headerErrors.warehouses" class="fieldError">{{ headerErrors.warehouses }}</div>
 					</div>
 				</div>
 
@@ -142,22 +249,40 @@ const removeItem = (index: number) => {
 							<th>Номенклатура</th>
 							<th>Количество</th>
 							<th>Ед. изм.</th>
+							<th v-if="form.type === 'production'">Направление</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr v-for="(item, index) in form.items" :key="index">
 							<td>
-								<select v-model="item.itemId">
-									<option :value="1">Гвозди</option>
-									<option :value="2">Доски</option>
-									<option :value="3">Краска</option>
+								<select v-model.number="item.itemId" @change="() => onItemSelect(index)">
+									<option :value="null">Выберите</option>
+									<option v-for="it in itemsList" :key="it.id" :value="it.id">{{ it.name }} ({{ it.code }})</option>
 								</select>
+								<div v-if="itemsErrors[index] && itemsErrors[index].item" class="rowError">{{ itemsErrors[index].item }}
+								</div>
 							</td>
 							<td>
-								<input type="number" v-model="item.quantity" min="0.001" step="0.001" />
+								<input type="number" v-model.number="item.quantity" :min="isWeightUnit(item.unit) ? 0.001 : 1"
+									:step="isWeightUnit(item.unit) ? 0.001 : 1" />
+								<div v-if="itemsErrors[index] && itemsErrors[index].quantity" class="rowError">{{
+									itemsErrors[index].quantity }}</div>
 							</td>
-							<td>{{ item.unit || "шт" }}</td>
+							<td>
+								<select v-model="item.unit">
+									<option v-for="u in availableUnits" :key="u" :value="u">{{ u }}</option>
+								</select>
+							</td>
+							<td v-if="form.type === 'production'">
+								<select v-model="item.direction">
+									<option :value="undefined">Не указано</option>
+									<option value="out">Списание (out)</option>
+									<option value="in">Оприходование (in)</option>
+								</select>
+								<div v-if="itemsErrors[index] && itemsErrors[index].direction" class="rowError">{{
+									itemsErrors[index].direction }}</div>
+							</td>
 							<td>
 								<button type="button" class="btnDelete" @click="removeItem(index)">
 									✕
@@ -165,7 +290,7 @@ const removeItem = (index: number) => {
 							</td>
 						</tr>
 						<tr v-if="form.items.length === 0">
-							<td colspan="4" class="emptyRow">
+							<td :colspan="form.type === 'production' ? 5 : 4" class="emptyRow">
 								Нет позиций. Добавьте товары.
 							</td>
 						</tr>
@@ -175,7 +300,7 @@ const removeItem = (index: number) => {
 
 			<div class="actions">
 				<BaseButton type="button" variant="secondary" @click="cancel">Отмена</BaseButton>
-				<BaseButton type="submit" variant="primary">Сохранить</BaseButton>
+				<BaseButton :disabled="!isFormValid || loading" type="submit" variant="primary">Сохранить</BaseButton>
 			</div>
 		</form>
 	</div>
@@ -269,5 +394,17 @@ textarea {
 	display: flex;
 	justify-content: flex-end;
 	gap: var(--space-3);
+}
+
+.fieldError {
+	color: #ff6b6b;
+	font-size: 0.85rem;
+	margin-top: 6px;
+}
+
+.rowError {
+	color: #ff6b6b;
+	font-size: 0.8rem;
+	margin-top: 4px;
 }
 </style>

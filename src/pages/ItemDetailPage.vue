@@ -5,7 +5,9 @@ import ModalForm from "../components/ModalForm.vue";
 import FormField from "../components/FormField.vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
-import { mockItems } from "../shared/mocks/data";
+import { nomenclatureApi } from "../shared/api/nomenclature";
+import { documentsApi } from "../shared/api/documents";
+import { mapItemTypeToRu, mapDocumentTypeToRu } from "../shared/utils/format";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,58 +19,61 @@ const showEdit = ref(false);
 const saving = ref(false);
 const formModel = ref<any>({});
 const showDelete = ref(false);
+const history = ref<Array<any>>([]);
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
 
+
 onMounted(async () => {
-	// Mock data assigned synchronously (no artificial delay)
-	item.value = {
-		id: itemId,
-		code: "ART-001",
-		name: "Гвозди строительные",
-		unit: "кг",
-		type: "material",
-		minQuantity: 100,
-		description: "Обычные гвозди для строительства",
-		totalQuantity: 1250,
-		balances: [
-			{
-				warehouseId: 1,
-				warehouseName: "Основной склад",
-				quantity: 1000,
-				reserved: 50,
-				available: 950,
-			},
-			{
-				warehouseId: 2,
-				warehouseName: "Цех №1",
-				quantity: 250,
-				reserved: 0,
-				available: 250,
-			},
-		],
-		history: [
-			{
-				id: 1,
-				date: "2025-12-13",
-				type: "incoming",
-				documentNumber: "ПР-0001",
-				quantity: 500,
-				warehouse: "Основной склад",
-			},
-			{
-				id: 2,
-				date: "2025-12-10",
-				type: "transfer",
-				documentNumber: "РМ-0005",
-				quantity: -200,
-				warehouse: "Основной склад",
-			},
-		],
-	};
-	loading.value = false;
+	loading.value = true;
+	try {
+		const id = Number(itemId);
+		const data = await nomenclatureApi.getById(id);
+		item.value = data;
+
+		// load related documents history for this item
+		try {
+			await loadHistoryForItem(id);
+		} catch (err) {
+			console.error('Failed to load history', err);
+		}
+	} catch (e: any) {
+		console.error(e);
+		alert(e?.response?.data?.message || e?.message || 'Не удалось загрузить номенклатуру');
+		router.back();
+	} finally {
+		loading.value = false;
+	}
 });
+
+async function loadHistoryForItem(id: number) {
+	// fetch documents that reference this item
+	const listResp = await documentsApi.getAll({ itemId: id, limit: 50, sort: { date: 'desc' } });
+	const docs: any[] = listResp.data || listResp;
+
+	// for each document fetch details to extract quantity for this item
+	const details = await Promise.all(docs.map(d => documentsApi.getById(d.id).then(r => r.data)));
+
+	history.value = docs.map((d, idx) => {
+		const det = details[idx];
+		const itemEntry = det.items?.find((it: any) => Number(it.itemId) === Number(id));
+		let quantity: string | null = null;
+		if (itemEntry) {
+			const q = itemEntry.quantity;
+			// if direction provided and is 'out' make negative display
+			if (itemEntry.direction === 'out') quantity = `-${q}`;
+			else quantity = String(q);
+		}
+		return {
+			id: d.id,
+			number: d.number,
+			type: d.type,
+			date: d.date,
+			quantity,
+		};
+	});
+}
 
 const goBack = () => router.back();
 
@@ -88,31 +93,36 @@ function confirmDeleteItem() {
 	showDelete.value = true;
 }
 
-function performDeleteItem() {
+async function performDeleteItem() {
 	if (!item.value) return;
-	const iid = Number(item.value.id);
-	const idx = mockItems.findIndex((it) => String(it.id) === String(item.value.id) || it.id === iid);
-	if (idx !== -1) mockItems.splice(idx, 1);
-	showDelete.value = false;
-	router.back();
+	try {
+		await nomenclatureApi.delete(Number(item.value.id));
+		showDelete.value = false;
+		router.back();
+	} catch (e: any) {
+		alert(e?.response?.data?.message || e?.message || 'Не удалось удалить позицию');
+	}
 }
 
 async function submitEdit() {
 	saving.value = true;
 	try {
 		if (!formModel.value.name) throw new Error('Название обязательно');
-		item.value = {
-			...item.value,
+		const payload: any = {
 			code: String(formModel.value.code),
 			name: String(formModel.value.name),
 			unit: String(formModel.value.unit || ''),
 			type: String(formModel.value.type || 'material'),
 			minQuantity: String(formModel.value.minQuantity || '0'),
-			description: String(formModel.value.description || ''),
+			description: formModel.value.description == null ? null : String(formModel.value.description),
 		};
+		await nomenclatureApi.patch(Number(item.value.id), payload);
+		// reload current item
+		const refreshed = await nomenclatureApi.getById(Number(item.value.id));
+		item.value = refreshed;
 		showEdit.value = false;
 	} catch (e: any) {
-		alert(e?.message || 'Не удалось сохранить');
+		alert(e?.response?.data?.message || e?.message || 'Не удалось сохранить');
 	} finally {
 		saving.value = false;
 	}
@@ -169,7 +179,7 @@ async function submitEdit() {
 					</div>
 					<div class="infoItem">
 						<span class="label">Тип:</span>
-						<span class="value">{{ item.type }}</span>
+						<span class="value">{{ mapItemTypeToRu(item.type) }}</span>
 					</div>
 					<div class="infoItem">
 						<span class="label">Мин. остаток:</span>
@@ -221,18 +231,14 @@ async function submitEdit() {
 							</tr>
 						</thead>
 						<tbody>
-							<tr v-for="rec in item.history" :key="rec.id">
+							<tr v-for="rec in history" :key="rec.id">
 								<td>{{ rec.date }}</td>
 								<td>
-									<router-link :to="`/documents/${rec.id}`" class="link">{{ rec.documentNumber }}</router-link>
+									<router-link :to="`/documents/${rec.id}`" class="link">{{ rec.number }}</router-link>
 								</td>
-								<td>{{ rec.type }}</td>
-								<td :class="rec.quantity > 0
-									? 'positive'
-									: 'negative'
-									">
-									{{ rec.quantity > 0 ? "+" : ""
-									}}{{ rec.quantity }}
+								<td>{{ mapDocumentTypeToRu(rec.type) }}</td>
+								<td :class="(rec.quantity != null && Number(rec.quantity) > 0) ? 'positive' : 'negative'">
+									{{ (rec.quantity != null && Number(rec.quantity) > 0) ? '+' : '' }}{{ rec.quantity ?? '-' }}
 								</td>
 							</tr>
 						</tbody>

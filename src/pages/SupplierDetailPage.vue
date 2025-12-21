@@ -7,6 +7,7 @@ import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
 import { suppliersApi } from "../shared/api/suppliers";
 import { documentsApi } from "../shared/api/documents";
+import { mapDocumentStatusToRu, mapDocumentTypeToRu } from "../shared/utils/format";
 
 const route = useRoute();
 const router = useRouter();
@@ -90,8 +91,8 @@ async function performDeleteSupplier() {
   } catch (e: any) {
     alert(
       e?.response?.data?.message ||
-        e?.message ||
-        "Не удалось удалить поставщика"
+      e?.message ||
+      "Не удалось удалить поставщика"
     );
   } finally {
     deleting.value = false;
@@ -136,21 +137,11 @@ async function submitEdit() {
         <h1>{{ supplier?.name || "Поставщик" }}</h1>
       </div>
       <div class="actions">
-        <button
-          v-if="permissions.canEditNomenclature"
-          class="btn"
-          type="button"
-          @click="openEdit"
-        >
+        <button v-if="permissions.canEditNomenclature" class="btn" type="button" @click="openEdit">
           Редактировать
         </button>
-        <button
-          v-if="permissions.canEditNomenclature"
-          class="btn"
-          type="button"
-          style="margin-left: 8px; background: #ff6b6b; color: white"
-          @click="confirmDeleteSupplier"
-        >
+        <button v-if="permissions.canEditNomenclature" class="btn" type="button"
+          style="margin-left: 8px; background: #ff6b6b; color: white" @click="confirmDeleteSupplier">
           Удалить
         </button>
       </div>
@@ -205,13 +196,13 @@ async function submitEdit() {
               <td>
                 <router-link :to="`/documents/${doc.id}`" class="link">{{
                   doc.number
-                }}</router-link>
+                  }}</router-link>
               </td>
               <td>{{ doc.date }}</td>
               <td>
                 {{ doc.amount ? doc.amount.toLocaleString() + " ₽" : "—" }}
               </td>
-              <td>{{ doc.status }}</td>
+              <td>{{ mapDocumentStatusToRu(doc.status) }}</td>
             </tr>
           </tbody>
         </table>
@@ -220,49 +211,19 @@ async function submitEdit() {
 
     <ModalForm v-model="showEdit" title="Редактировать поставщика">
       <div>
-        <FormField
-          label="Название"
-          v-model="formModel.name"
-          placeholder="ООО Ромашка"
-        />
-        <FormField
-          label="ИНН"
-          v-model="formModel.inn"
-          placeholder="7700000000"
-        />
-        <FormField
-          label="Контактное лицо"
-          v-model="formModel.contactPerson"
-          placeholder="ФИО"
-        />
-        <FormField
-          label="Телефон"
-          v-model="formModel.phone"
-          placeholder="+7 (900) 000-00-00"
-        />
-        <FormField
-          label="Email"
-          v-model="formModel.email"
-          placeholder="contact@company.test"
-        />
-        <FormField
-          label="Адрес"
-          type="textarea"
-          v-model="formModel.address"
-          placeholder="город, улица, дом"
-        />
+        <FormField label="Название" v-model="formModel.name" placeholder="ООО Ромашка" />
+        <FormField label="ИНН" v-model="formModel.inn" placeholder="7700000000" />
+        <FormField label="Контактное лицо" v-model="formModel.contactPerson" placeholder="ФИО" />
+        <FormField label="Телефон" v-model="formModel.phone" placeholder="+7 (900) 000-00-00" />
+        <FormField label="Email" v-model="formModel.email" placeholder="contact@company.test" />
+        <FormField label="Адрес" type="textarea" v-model="formModel.address" placeholder="город, улица, дом" />
       </div>
 
       <template #footer>
         <button class="btn" type="button" @click="showEdit = false">
           Отмена
         </button>
-        <button
-          class="btn btnPrimary"
-          type="button"
-          @click="submitEdit"
-          :disabled="saving"
-        >
+        <button class="btn btnPrimary" type="button" @click="submitEdit" :disabled="saving">
           {{ saving ? "Сохраняю..." : "Сохранить" }}
         </button>
       </template>
@@ -279,13 +240,8 @@ async function submitEdit() {
         <button class="btn" type="button" @click="showDelete = false">
           Отмена
         </button>
-        <button
-          class="btn"
-          type="button"
-          style="background: #ff6b6b; color: white"
-          @click="performDeleteSupplier"
-          :disabled="deleting"
-        >
+        <button class="btn" type="button" style="background: #ff6b6b; color: white" @click="performDeleteSupplier"
+          :disabled="deleting">
           {{ deleting ? "Удаляю..." : "Удалить" }}
         </button>
       </template>

@@ -58,15 +58,22 @@ export const useAuthStore = defineStore("auth", {
 			if (this.state === "loaded" || this.state === "loading") return;
 			this.state = "loading";
 
+			// If developer has chosen a mock role in localStorage, use it immediately
+			const role = readRoleFromStorage();
+			if (role) {
+				this.me = buildMockMe(role);
+				this.state = "loaded";
+				return;
+			}
+
 			try {
 				const me = await authApi.me();
 				this.me = me;
 			} catch (err) {
-				const role = readRoleFromStorage();
-				this.me = role ? buildMockMe(role) : null;
+				this.me = null;
+			} finally {
+				this.state = "loaded";
 			}
-
-			this.state = "loaded";
 		},
 
 		async login(payload: { login: string; password: string }): Promise<void> {

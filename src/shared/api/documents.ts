@@ -14,6 +14,8 @@ export const documentsApi = {
 		http.post<DocumentDetail>("/documents", data),
 	updateStatus: (id: number | string, status: string) =>
 		http.patch<DocumentDetail>(`/documents/${id}/status`, { status }),
+	print: (id: number | string) =>
+		http.get<Blob>(`/documents/${id}/print`, { responseType: "blob" as const }),
 	cancel: (id: number | string) => http.delete(`/documents/${id}`),
 	getAudit: (id: number | string) => http.get<any[]>(`/documents/${id}/audit`),
 };

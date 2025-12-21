@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed, ref, useSlots } from "vue";
+import { computed, ref, useSlots, watch } from "vue";
 import { useRouter } from "vue-router";
 
 interface Column<T> {
@@ -20,6 +20,8 @@ interface Props {
   canEdit?: boolean;
   /** optional function to compute a route path for a row */
   rowLink?: (item: T) => string | null;
+  /** optional externally-controlled sort rules */
+  sort?: Array<{ field: keyof T; direction: "asc" | "desc" }>;
 }
 
 const props = defineProps<Props>();
@@ -56,20 +58,44 @@ type SortRule = {
 
 const sortRules = ref<SortRule[]>([]);
 
+// if parent passes `sort` prop, keep internal state in sync
+if ((props as any).sort) {
+  try {
+    sortRules.value = ((props as any).sort as SortRule[]).slice();
+  } catch {}
+}
+
+// watch for external changes
+watch(() => (props as any).sort, (v: any) => {
+  try {
+    sortRules.value = v ? (v as SortRule[]).slice() : [];
+  } catch {}
+});
+
 function toggleSort(field: keyof T) {
-  const existingIndex = sortRules.value.findIndex((r) => r.field === field);
+  // compare keys as strings to avoid subtle identity issues
+  const keyStr = String(field);
+  const existingIndex = sortRules.value.findIndex((r) => String(r.field) === keyStr);
+
+  // debug: log before state
+  try { console.log('EditableTable.toggleSort.before', keyStr, JSON.parse(JSON.stringify(sortRules.value)), { existingIndex }); } catch(e) {}
 
   if (existingIndex !== -1) {
     const rule = sortRules.value[existingIndex];
     if (rule) {
-      if (rule.direction === "asc") rule.direction = "desc";
-      else sortRules.value.splice(existingIndex, 1);
+      if (rule.direction === "asc") {
+        rule.direction = "desc";
+      } else {
+        sortRules.value.splice(existingIndex, 1);
+      }
     }
   } else {
     sortRules.value.push({ field: field as any, direction: "asc" });
   }
 
-  // emit sort change for parent components to handle server-side sorting
+  // debug: log after state
+  try { console.log('EditableTable.toggleSort.after', keyStr, JSON.parse(JSON.stringify(sortRules.value))); } catch(e) {}
+
   emit("sort", sortRules.value.slice());
 }
 // end of toggleSort
