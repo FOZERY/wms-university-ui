@@ -33,25 +33,16 @@ function onDetails(id: number) {
 					<div class="statNameSmall">{{ it.name }}</div>
 					<div class="statBarRow">
 						<div class="statBarSmall">
-							<div
-								class="statFillSmall"
-								:style="{ width: it.percent + '%' }"
-								:class="{
-									warn: it.percent >= 80 && it.percent < 90,
-									danger: it.percent >= 90,
-								}"
-							></div>
+							<div class="statFillSmall" :style="{ width: it.percent + '%' }" :class="{
+								warn: it.percent >= 80 && it.percent < 90,
+								danger: it.percent >= 90,
+							}"></div>
 						</div>
 						<span class="statPctSmall">{{ it.percent }}%</span>
 					</div>
 				</div>
 				<div class="statRight">
-					<BaseButton
-						type="button"
-						class="detailsBtn"
-						@click="onDetails(it.id)"
-						>Детали</BaseButton
-					>
+					<BaseButton type="button" class="detailsBtn" @click="onDetails(it.id)">Детали</BaseButton>
 				</div>
 			</li>
 		</ul>
@@ -62,12 +53,14 @@ function onDetails(id: number) {
 .statsSummary {
 	font-size: 12px;
 }
+
 .legendRow {
 	display: flex;
 	gap: 8px;
 	align-items: center;
 	margin-bottom: 6px;
 }
+
 .legendItem {
 	display: flex;
 	align-items: center;
@@ -75,18 +68,22 @@ function onDetails(id: number) {
 	color: var(--muted);
 	font-size: 11px;
 }
+
 .dot {
 	width: 12px;
 	height: 8px;
 	border-radius: 3px;
 	display: inline-block;
 }
+
 .dot.occupied {
 	background: rgba(99, 132, 255, 0.9);
 }
+
 .dot.free {
 	background: rgba(160, 160, 160, 0.7);
 }
+
 .statsListSmall {
 	list-style: none;
 	margin: 0;
@@ -94,13 +91,18 @@ function onDetails(id: number) {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	/* limit height and allow scrolling inside the summary list */
+	max-height: calc(var(--chart-card-chart-height) - 70px);
+	overflow: auto;
 }
+
 .statItemSmall {
 	display: flex;
 	align-items: flex-end;
 	justify-content: space-between;
 	gap: 6px;
 }
+
 .statLeft {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -109,6 +111,7 @@ function onDetails(id: number) {
 	justify-content: flex-start;
 	gap: 2px;
 }
+
 .statNameSmall {
 	font-weight: 500;
 	font-size: 12px;
@@ -116,6 +119,7 @@ function onDetails(id: number) {
 	overflow: visible;
 	word-break: break-word;
 }
+
 .statBarRow {
 	display: flex;
 	flex-direction: row;
@@ -123,6 +127,7 @@ function onDetails(id: number) {
 	gap: 4px;
 	min-width: 0;
 }
+
 .statBarSmall {
 	flex: 1 1 auto;
 	height: 6px;
@@ -131,6 +136,7 @@ function onDetails(id: number) {
 	overflow: hidden;
 	min-width: 0;
 }
+
 .statPctSmall {
 	color: var(--muted);
 	font-size: 11px;
@@ -138,23 +144,28 @@ function onDetails(id: number) {
 	text-align: right;
 	flex-shrink: 0;
 }
+
 .statFillSmall {
 	height: 100%;
 	background: rgba(99, 132, 255, 0.8);
 	transition: width 0.3s ease;
 }
+
 .statFillSmall.warn {
 	background: orange;
 }
+
 .statFillSmall.danger {
 	background: tomato;
 }
+
 .statRight {
 	display: flex;
 	align-items: flex-end;
 	justify-content: center;
 	flex-shrink: 0;
 }
+
 .detailsBtn {
 	padding: 4px 6px;
 	height: 26px;

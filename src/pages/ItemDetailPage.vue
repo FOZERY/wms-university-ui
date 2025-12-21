@@ -6,6 +6,7 @@ import FormField from "../components/FormField.vue";
 import { useAuthStore } from "../stores/auth";
 import { getPermissions } from "../shared/auth/permissions";
 import { nomenclatureApi } from "../shared/api/nomenclature";
+import { stockApi } from "../shared/api/stock";
 import { documentsApi } from "../shared/api/documents";
 import { mapItemTypeToRu, mapDocumentTypeToRu } from "../shared/utils/format";
 
@@ -15,6 +16,8 @@ const itemId = route.params.id as string;
 
 const item = ref<any>(null);
 const loading = ref(true);
+const balances = ref<any[]>([]);
+const loadingBalances = ref(false);
 const showEdit = ref(false);
 const saving = ref(false);
 const formModel = ref<any>({});
@@ -31,6 +34,18 @@ onMounted(async () => {
 		const id = Number(itemId);
 		const data = await nomenclatureApi.getById(id);
 		item.value = data;
+
+		// load stock balances for this item
+		try {
+			loadingBalances.value = true;
+			const resp = await stockApi.getByItem(id);
+			const list = (resp && (resp as any).data) || resp || [];
+			balances.value = Array.isArray(list) ? list : [];
+		} catch (err) {
+			console.error('Failed to load balances for item', err);
+		} finally {
+			loadingBalances.value = false;
+		}
 
 		// load related documents history for this item
 		try {
@@ -205,11 +220,16 @@ async function submitEdit() {
 							</tr>
 						</thead>
 						<tbody>
-							<tr v-for="balance in item.balances" :key="balance.warehouseId">
+							<tr v-if="loadingBalances">
+								<td colspan="4">Загрузка...</td>
+							</tr>
+							<tr v-else-if="!balances.length">
+								<td colspan="4">Нет остатков</td>
+							</tr>
+							<tr v-else v-for="balance in balances" :key="balance.warehouseId">
 								<td>
-									<router-link :to="`/warehouses/${balance.warehouseId}`" class="link">{{
-										balance.warehouseName
-									}}</router-link>
+									<router-link :to="`/warehouses/${balance.warehouseId}`" class="link">{{ balance.warehouseName
+										}}</router-link>
 								</td>
 								<td>{{ balance.quantity }}</td>
 								<td>{{ balance.reserved }}</td>

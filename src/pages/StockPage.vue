@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import EditableTable from "../components/EditableTable.vue";
 import useDebounce from "../composables/useDebounce";
 import { getPermissions } from "../shared/auth/permissions";
-import { mockStock, mockWarehouses, mockItems, mockAdjustments } from "../shared/mocks/data";
+import { mockItems, mockAdjustments } from "../shared/mocks/data";
+import { warehousesApi } from "../shared/api/warehouses";
+import { stockApi } from "../shared/api/stock";
+import type { StockBalance } from "../shared/api/types";
 import { useAuthStore } from "../stores/auth";
+import { useRouter } from "vue-router";
 import ModalForm from "../components/ModalForm.vue";
 import FormField from "../components/FormField.vue";
 
 const auth = useAuthStore();
 const permissions = computed(() => getPermissions(auth.role));
 
-type WarehouseFilter = "all" | "materials" | "products";
+type WarehouseFilter = string | number; // 'all' or warehouseId or legacy material/product
 const warehouseFilter = ref<WarehouseFilter>("all");
+const warehouses = ref<Array<{ id: number; name: string }>>([]);
 const searchQuery = ref("");
 const debouncedSearch = useDebounce(searchQuery, 250);
 
@@ -34,18 +39,49 @@ interface StockRow {
 }
 
 function mapWarehouseToRu(warehouseName: string): string {
-	// Простая маппинга под текущие моки.
-	return warehouseName.includes("Готов")
-		? "Склад готовой продукции"
-		: "Склад материалов";
+	// Robust mapping: detect words starting with 'готов' (case-insensitive)
+	if (!warehouseName) return "Склад";
+	try {
+		if (/готов/i.test(warehouseName)) return "Склад готовой продукции";
+	} catch { }
+	return "Склад материалов";
 }
 
+const router = useRouter();
+
+function goToWarehouse(id: number | null) {
+	if (!id) return;
+	router.push(`/warehouses/${id}`);
+}
+
+function goToItem(id: number | null) {
+	if (!id) return;
+	router.push(`/nomenclature/${id}`);
+}
+
+function getWarehouseName(id: number | null) {
+	if (!id) return null;
+	const w = warehouses.value.find((x) => x.id === id);
+	return w ? w.name : null;
+}
+
+const stock = ref<StockBalance[]>([]);
+
 const filteredStock = computed(() => {
-	if (warehouseFilter.value === "all") return mockStock;
-	if (warehouseFilter.value === "products") {
-		return mockStock.filter((r) => r.warehouseName.includes("Готов"));
+	if (!Array.isArray(stock.value)) return [];
+	if (warehouseFilter.value === "all") return stock.value;
+
+	// numeric or string id -> filter by warehouse id
+	if (typeof warehouseFilter.value === 'number' || (typeof warehouseFilter.value === 'string' && /^\\d+\b$/.test(String(warehouseFilter.value)))) {
+		const id = Number(warehouseFilter.value);
+		return stock.value.filter((r: any) => Number(r.warehouseId) === id);
 	}
-	return mockStock.filter((r) => !r.warehouseName.includes("Готов"));
+
+	if (warehouseFilter.value === "products") {
+		return stock.value.filter((r: any) => (r.warehouseName || "").includes("Готов"));
+	}
+
+	return stock.value.filter((r: any) => !(r.warehouseName || "").includes("Готов"));
 });
 
 const displayedStock = computed(() => {
@@ -63,6 +99,59 @@ const displayedStock = computed(() => {
 	});
 });
 
+const loading = ref(false);
+const offset = ref(0);
+const limit = ref(30);
+
+async function loadStock() {
+	loading.value = true;
+	try {
+		const params: any = { offset: offset.value };
+		// include limit only if set; enforce maximum 100 to avoid huge queries
+		if (typeof limit.value === 'number' && !Number.isNaN(limit.value)) {
+			params.limit = Math.min(100, Math.max(0, Number(limit.value)));
+		}
+		const q = debouncedSearch.value.trim();
+		if (q) params.search = q;
+		// if warehouseFilter is a numeric id, filter by warehouse
+		if (warehouseFilter.value !== 'all' && typeof warehouseFilter.value !== 'string') {
+			params.warehouseId = warehouseFilter.value;
+		}
+
+		// maintain legacy materials/products filters (if used)
+		if (warehouseFilter.value === 'materials') params.itemType = 'material';
+		if (warehouseFilter.value === 'products') params.itemType = 'product';
+
+		const resp = await stockApi.getAll(params);
+		const data = (resp && (resp as any).data) || resp || [];
+		const list = Array.isArray(data) ? data : [];
+		// ensure each row has a unique key for Vue lists (warehouseId-itemId)
+		stock.value = list.map((s: any) => ({ ...s, compositeKey: `${s.warehouseId}-${s.itemId}` }));
+	} catch (e) {
+		console.error('Failed to load stock', e);
+		stock.value = [];
+	} finally {
+		loading.value = false;
+	}
+}
+
+onMounted(async () => {
+	try {
+		// request a reasonable page size to avoid huge responses
+		const list = await warehousesApi.list({ limit: 100 });
+		warehouses.value = Array.isArray(list) ? list : [];
+	} catch (err) {
+		console.error('Failed to load warehouses', err);
+		warehouses.value = [];
+	}
+	await loadStock();
+});
+
+watch([debouncedSearch, warehouseFilter], () => {
+	offset.value = 0;
+	loadStock();
+});
+
 const columns = computed(() => [
 	{
 		key: "warehouseName" as keyof StockRow,
@@ -77,11 +166,11 @@ const columns = computed(() => [
 ]);
 
 function handleUpdate(item: StockRow, field: keyof StockRow, newValue: any) {
-	const itemIndex = mockStock.findIndex(
-		(s) => s.warehouseId === item.warehouseId && s.itemId === item.itemId
+	const itemIndex = stock.value.findIndex(
+		(s: any) => s.warehouseId === item.warehouseId && s.itemId === item.itemId
 	);
 	if (itemIndex !== -1) {
-		(mockStock[itemIndex] as any)[field] = newValue;
+		(stock.value[itemIndex] as any)[field] = newValue;
 	}
 	console.log("Сохранено:", {
 		warehouseId: item.warehouseId,
@@ -107,7 +196,7 @@ const adjustModel = ref<{
 function openAdjust() {
 	// prefill warehouse if filter narrows to single warehouse
 	const first = filteredStock.value[0];
-	adjustModel.value.warehouseId = first ? first.warehouseId : (mockWarehouses[0]?.id ?? null);
+	adjustModel.value.warehouseId = first ? first.warehouseId : (warehouses[0]?.id ?? null);
 	adjustModel.value.itemId = first ? first.itemId : (mockItems[0]?.id ?? null);
 	adjustModel.value.type = "increase";
 	adjustModel.value.quantity = "";
@@ -131,10 +220,10 @@ async function submitAdjust() {
 		if (!reason) throw new Error("Причина обязательна.");
 		if (!qty || Number.isNaN(qty) || qty <= 0) throw new Error("Количество должно быть положительным числом.");
 
-		const idx = mockStock.findIndex((s) => s.warehouseId === wid && s.itemId === iid);
+		const idx = stock.value.findIndex((s: any) => s.warehouseId === wid && s.itemId === iid);
 		if (idx === -1) throw new Error("Позиция не найдена в остатках.");
 
-		const row = mockStock[idx];
+		const row = stock.value[idx] as any;
 		if (!row) throw new Error("Позиция не найдена (внутренняя ошибка).");
 		const currentQuantity = Number(row.quantity) || 0;
 		const reserved = Number(row.reserved) || 0;
@@ -146,24 +235,58 @@ async function submitAdjust() {
 		}
 
 		const newQuantity = currentQuantity + delta;
-		row.quantity = newQuantity.toFixed(3);
-		row.available = String((newQuantity - reserved).toFixed(3));
 
-		// record adjustment
-		const maxId = mockAdjustments.reduce((m, a) => Math.max(m, a.id), 0);
-		mockAdjustments.unshift({
-			id: maxId + 1,
-			userId: (await auth.ensureMeLoaded(), auth.me?.id ?? null),
-			warehouseId: wid,
-			itemId: iid,
-			delta,
-			reason,
-			referenceDocument: adjustModel.value.reference || null,
-			createdAt: Date.now(),
-		});
+		if (adjustModel.value.type === "increase") {
+			// call backend adjust
+			try {
+				await stockApi.adjust({ warehouseId: wid, itemId: iid, quantity: String(qty), type: adjustModel.value.type, reason, reference: adjustModel.value.reference || null });
+				// update local row
+				row.quantity = newQuantity.toFixed(3);
+				row.available = String((newQuantity - reserved).toFixed(3));
 
-		showAdjust.value = false;
-		alert("Корректировка применена");
+				// record adjustment locally for history view (retain mockAdjustments)
+				const maxId = mockAdjustments.reduce((m, a) => Math.max(m, a.id), 0);
+				mockAdjustments.unshift({
+					id: maxId + 1,
+					userId: (await auth.ensureMeLoaded(), auth.me?.id ?? null),
+					warehouseId: wid,
+					itemId: iid,
+					delta,
+					reason,
+					referenceDocument: adjustModel.value.reference || null,
+					createdAt: Date.now(),
+				});
+
+				showAdjust.value = false;
+				alert("Корректировка применена");
+			} catch (err) {
+				throw err;
+			}
+		} else {
+			// decrease: call backend adjust as well
+			try {
+				await stockApi.adjust({ warehouseId: wid, itemId: iid, quantity: String(qty), type: adjustModel.value.type, reason, reference: adjustModel.value.reference || null });
+				row.quantity = newQuantity.toFixed(3);
+				row.available = String((newQuantity - reserved).toFixed(3));
+
+				const maxId = mockAdjustments.reduce((m, a) => Math.max(m, a.id), 0);
+				mockAdjustments.unshift({
+					id: maxId + 1,
+					userId: (await auth.ensureMeLoaded(), auth.me?.id ?? null),
+					warehouseId: wid,
+					itemId: iid,
+					delta,
+					reason,
+					referenceDocument: adjustModel.value.reference || null,
+					createdAt: Date.now(),
+				});
+
+				showAdjust.value = false;
+				alert("Корректировка применена");
+			} catch (err) {
+				throw err;
+			}
+		}
 	} catch (e: any) {
 		alert(e?.message || "Ошибка корректировки");
 	} finally {
@@ -185,10 +308,7 @@ async function submitAdjust() {
 					Склад:&nbsp;
 					<select v-model="warehouseFilter" class="select">
 						<option value="all">Все</option>
-						<option value="materials">Склад материалов</option>
-						<option value="products">
-							Склад готовой продукции
-						</option>
+						<option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
 					</select>
 				</label>
 				<button v-if="permissions.canAdjustStock" class="btn btnPrimary" type="button" @click="openAdjust">
@@ -197,11 +317,22 @@ async function submitAdjust() {
 			</div>
 		</div>
 
-		<EditableTable :columns="columns" :data="displayedStock" row-key="itemId" :can-edit="true" @update="handleUpdate" />
+		<EditableTable :columns="columns" :data="displayedStock" row-key="compositeKey" :can-edit="true"
+			@update="handleUpdate">
+			<template #cell-warehouseName="{ item, value }">
+				<a href="#" class="linkCell" @click.prevent.stop="goToWarehouse(item.warehouseId)">
+					{{ getWarehouseName(item.warehouseId) || value || mapWarehouseToRu(item.warehouseName || '') }}
+				</a>
+			</template>
+
+			<template #cell-itemName="{ item, value }">
+				<a href="#" class="linkCell" @click.prevent.stop="goToItem(item.itemId)">{{ value || '—' }}</a>
+			</template>
+		</EditableTable>
 
 		<ModalForm v-model="showAdjust" title="Корректировка остатка">
 			<div>
-				<FormField label="Склад" type="select" :options="mockWarehouses.map(w => ({ value: w.id, label: w.name }))"
+				<FormField label="Склад" type="select" :options="warehouses.map(w => ({ value: w.id, label: w.name }))"
 					v-model="adjustModel.warehouseId" />
 				<FormField label="Товар" type="select" :options="mockItems.map(i => ({ value: i.id, label: i.name }))"
 					v-model="adjustModel.itemId" />
@@ -227,4 +358,12 @@ async function submitAdjust() {
 
 <style scoped>
 /* searchInput uses shared style in src/style.css */
+.linkCell {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+.linkCell:hover {
+	text-decoration: underline;
+}
 </style>

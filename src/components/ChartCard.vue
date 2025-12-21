@@ -153,7 +153,9 @@ defineExpose({ getCanvas });
   min-width: calc(170px * var(--chart-card-scale));
   /* фиксированная высота чтобы карточки были одной высоты */
   height: var(--chart-card-chart-height);
-  overflow: hidden;
+  /* let inner content control scrolling (avoid double scrollbar on the card) */
+  overflow: visible;
+  padding-right: 0;
 }
 
 /* Responsive tweaks and scale adjustments */

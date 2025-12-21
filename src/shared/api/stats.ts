@@ -8,6 +8,9 @@ export const statsApi = {
     if (Array.isArray(d)) return d as WarehouseUtilization[];
     if (d && Array.isArray(d.data)) return d.data as WarehouseUtilization[];
     if (d && Array.isArray(d.items)) return d.items as WarehouseUtilization[];
+    // handle backend that returns object with overall/summary arrays
+    if (d && Array.isArray(d.overall)) return d.overall as WarehouseUtilization[];
+    if (d && Array.isArray(d.summary)) return d.summary as WarehouseUtilization[];
     return [] as WarehouseUtilization[];
   },
 
