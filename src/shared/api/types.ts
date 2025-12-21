@@ -100,3 +100,35 @@ export interface StockBalance {
 	reserved: string;
 	available: string;
 }
+
+// Stats types for dashboard
+export interface WarehouseAllocation {
+	type: ItemType | string; // 'material' | 'product'
+	occupied: number;
+}
+
+export interface WarehouseUtilization {
+	id: number;
+	name: string;
+	capacity: number;
+	occupied: number;
+	free: number;
+	percentOccupied: number; // 0..100
+	allocations?: WarehouseAllocation[];
+}
+
+export interface DailyMovement {
+	date: string; // YYYY-MM-DD
+	incoming: number;
+	transfer: number;
+	production: number;
+}
+
+export interface LowStockItem {
+	id: number;
+	name: string;
+	current: number;
+	min: number;
+	unit?: string;
+	warehouseId?: number;
+}

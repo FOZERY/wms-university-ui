@@ -4,9 +4,14 @@ import { useRouter } from "vue-router";
 import BaseButton from "../components/BaseButton.vue";
 import ChartCard from "../components/ChartCard.vue";
 import StatsSummary from "../components/StatsSummary.vue";
-import { useWarehouseStats } from "../composables/useWarehouseStats";
+import { statsApi } from "../shared/api/stats";
 
-const { data } = useWarehouseStats();
+const warehouses = ref<any[]>([]);
+const dailyMovements = ref<any[]>([]);
+const dailyDateFrom = ref<string | null>(null);
+const dailyDateTo = ref<string | null>(null);
+const lowStockItems = ref<any[]>([]);
+const loading = ref(false);
 const router = useRouter();
 
 const chartCardRef = ref<any>(null);
@@ -53,9 +58,42 @@ function handleOutsideClick(e: MouseEvent) {
 }
 
 onMounted(() => document.addEventListener("click", handleOutsideClick));
-onBeforeUnmount(() =>
-	document.removeEventListener("click", handleOutsideClick),
-);
+onBeforeUnmount(() => document.removeEventListener("click", handleOutsideClick));
+
+async function loadDashboard() {
+	loading.value = true;
+	try {
+		// ensure the daily movements end with today (use local date to avoid UTC shift)
+		const days = 14;
+		const to = new Date();
+		const from = new Date();
+		from.setDate(to.getDate() - (days - 1));
+		const pad = (n: number) => String(n).padStart(2, '0');
+		const dateTo = `${to.getFullYear()}-${pad(to.getMonth() + 1)}-${pad(to.getDate())}`;
+		const dateFrom = `${from.getFullYear()}-${pad(from.getMonth() + 1)}-${pad(from.getDate())}`;
+
+		// save range before fetching so chart builds labels correctly
+		dailyDateFrom.value = dateFrom;
+		dailyDateTo.value = dateTo;
+
+		const [wu, dm, ls] = await Promise.all([
+			statsApi.getWarehouseUtilization({ breakdown: 'type' }),
+			statsApi.getDailyMovements({ dateFrom, dateTo }),
+			statsApi.getLowStock({ limit: 5, onlyBelow: true }),
+		]);
+		warehouses.value = wu as any[];
+		dailyMovements.value = dm as any[];
+		lowStockItems.value = ls as any[];
+	} catch (e) {
+		console.error('Failed to load dashboard stats', e);
+	} finally {
+		loading.value = false;
+	}
+}
+
+onMounted(() => {
+	loadDashboard();
+});
 
 const chartOptions = {
 	responsive: true,
@@ -99,67 +137,72 @@ const chartOptions = {
 	},
 };
 
-// --- Mock data for additional dashboard charts ---
-function genLabels(days = 14) {
+// daily chart derives from API `dailyMovements` but we build a contiguous range
+function buildDateRange(from: string, to: string) {
 	const res: string[] = [];
-	for (let i = days - 1; i >= 0; i--) {
-		const d = new Date();
-		d.setDate(d.getDate() - i);
-		res.push(d.toISOString().slice(5, 10));
+	const [fy, fm, fd] = from.split('-').map((v) => Number(v));
+	const [ty, tm, td] = to.split('-').map((v) => Number(v));
+	const a = new Date(fy, fm - 1, fd);
+	const b = new Date(ty, tm - 1, td);
+	for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+		const yy = d.getFullYear();
+		const mm = String(d.getMonth() + 1).padStart(2, '0');
+		const dd = String(d.getDate()).padStart(2, '0');
+		res.push(`${yy}-${mm}-${dd}`);
 	}
 	return res;
 }
 
 const dailyChartData = computed(() => {
-	const labels = genLabels(14);
+	const from = dailyDateFrom.value;
+	const to = dailyDateTo.value;
+	if (!from || !to) return { labels: [], datasets: [] };
+	const range = buildDateRange(from, to);
+	const labels = range.map((d) => d.slice(5));
+
+	const mapByDate = new Map<string, any>();
+	for (const row of dailyMovements.value) mapByDate.set(row.date, row);
+
 	return {
 		labels,
 		datasets: [
 			{
-				label: "Приход",
-				backgroundColor: "rgba(75,192,192,0.3)",
-				borderColor: "rgba(75,192,192,1)",
+				label: 'Приход',
+				backgroundColor: 'rgba(75,192,192,0.3)',
+				borderColor: 'rgba(75,192,192,1)',
 				borderWidth: 2,
 				fill: true,
 				tension: 0.4,
-				data: labels.map(() => Math.floor(Math.random() * 20) + 5)
+				data: range.map((d) => Number((mapByDate.get(d) || {}).incoming || 0)),
 			},
 			{
-				label: "Перемещение",
-				backgroundColor: "rgba(255,159,64,0.3)",
-				borderColor: "rgba(255,159,64,1)",
+				label: 'Перемещение',
+				backgroundColor: 'rgba(255,159,64,0.3)',
+				borderColor: 'rgba(255,159,64,1)',
 				borderWidth: 2,
 				fill: true,
 				tension: 0.4,
-				data: labels.map(() => Math.floor(Math.random() * 10) + 2)
+				data: range.map((d) => Number((mapByDate.get(d) || {}).transfer || 0)),
 			},
 			{
-				label: "Производство",
-				backgroundColor: "rgba(153,102,255,0.3)",
-				borderColor: "rgba(153,102,255,1)",
+				label: 'Производство',
+				backgroundColor: 'rgba(153,102,255,0.3)',
+				borderColor: 'rgba(153,102,255,1)',
 				borderWidth: 2,
 				fill: true,
 				tension: 0.4,
-				data: labels.map(() => Math.floor(Math.random() * 8))
+				data: range.map((d) => Number((mapByDate.get(d) || {}).production || 0)),
 			},
 		],
 	};
 });
 
-// Mock data: товары ниже минимального остатка
-const lowStockItems = [
-	{ id: 1, name: "Болт М8", current: 12, min: 50 },
-	{ id: 2, name: "Гайка М10", current: 8, min: 30 },
-	{ id: 3, name: "Шайба плоская", current: 5, min: 20 },
-	{ id: 4, name: "Клей ПВА", current: 2, min: 10 },
-];
-
 const lowStockChartData = computed(() => {
 	return {
-		labels: lowStockItems.map(i => i.name),
+		labels: lowStockItems.value.map((i: any) => i.name),
 		datasets: [
-			{ label: "Текущий остаток", backgroundColor: "rgba(255,99,132,0.8)", data: lowStockItems.map(i => i.current) },
-			{ label: "Минимум", backgroundColor: "rgba(200,200,200,0.5)", data: lowStockItems.map(i => i.min) },
+			{ label: "Текущий остаток", backgroundColor: "rgba(255,99,132,0.8)", data: lowStockItems.value.map((i: any) => Number(i.current)) },
+			{ label: "Минимум", backgroundColor: "rgba(200,200,200,0.5)", data: lowStockItems.value.map((i: any) => Number(i.min)) },
 		],
 	};
 });
@@ -175,39 +218,39 @@ const docLegend = [
 ];
 
 const chartData = computed(() => {
-	const slice = data.value.slice(0, 2);
+	const slice = Array.isArray(warehouses.value) ? warehouses.value : [];
 	return {
 		labels: slice.map((w: any) => w.name),
 		datasets: [
 			{
 				label: "Занято",
 				backgroundColor: "rgba(99, 132, 255, 0.9)",
-				data: slice.map((w: any) => w.currentCount),
+				data: slice.map((w: any) => Number(w.occupied || 0)),
 			},
 			{
 				label: "Свободно",
 				backgroundColor: "rgba(160, 160, 160, 0.6)",
-				data: slice.map((w: any) => w.capacity - w.currentCount),
+				data: slice.map((w: any) => Number((w.free != null ? w.free : (w.capacity - (w.occupied || 0))))),
 			},
 		],
 	};
 });
 
 const utilization = computed(() =>
-	data.value.slice(0, 2).map((w: any) => ({
+	(Array.isArray(warehouses.value) ? warehouses.value : []).map((w: any) => ({
 		...w,
-		percent: Math.round((w.currentCount / w.capacity) * 100),
+		percent: Math.round(((w.percentOccupied != null ? w.percentOccupied : ((w.occupied || 0) / (w.capacity || 1) * 100)))),
 	})),
 );
 
 function exportCSV() {
-	const rows = [["id", "name", "capacity", "currentCount", "percent"]];
+	const rows = [["id", "name", "capacity", "occupied", "percent"]];
 	utilization.value.forEach((w: any) =>
 		rows.push([
 			w.id,
 			w.name,
 			String(w.capacity),
-			String(w.currentCount),
+			String(w.occupied || 0),
 			String(w.percent),
 		]),
 	);
@@ -247,9 +290,9 @@ async function exportPNG() {
 }
 
 async function exportXLSX() {
-	const rows: any[] = [["id", "name", "capacity", "currentCount", "percent"]];
+	const rows: any[] = [["id", "name", "capacity", "occupied", "percent"]];
 	utilization.value.forEach((w: any) =>
-		rows.push([w.id, w.name, w.capacity, w.currentCount, w.percent]),
+		rows.push([w.id, w.name, w.capacity, w.occupied || 0, w.percent]),
 	);
 	try {
 		const XLSX = (await import("xlsx")) as any;

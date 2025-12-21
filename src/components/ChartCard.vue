@@ -9,6 +9,7 @@ import {
   PointElement,
   Title,
   Tooltip,
+  Filler,
 } from "chart.js";
 import { ref } from "vue";
 import { Bar, Line } from "vue-chartjs";
@@ -17,6 +18,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
   BarElement,
   CategoryScale,
   LinearScale,
