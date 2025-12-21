@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import type { MeResponse, UserRole } from "../shared/api/types";
+import { authApi } from "../shared/api/auth";
 
 type LoadState = "idle" | "loading" | "loaded" | "error";
 
@@ -57,10 +58,29 @@ export const useAuthStore = defineStore("auth", {
 			if (this.state === "loaded" || this.state === "loading") return;
 			this.state = "loading";
 
-			const role = readRoleFromStorage();
-			this.me = role ? buildMockMe(role) : null;
+			try {
+				const me = await authApi.me();
+				this.me = me;
+			} catch (err) {
+				const role = readRoleFromStorage();
+				this.me = role ? buildMockMe(role) : null;
+			}
 
 			this.state = "loaded";
+		},
+
+		async login(payload: { login: string; password: string }): Promise<void> {
+			this.state = "loading";
+			try {
+				await authApi.login(payload);
+				this.me = await authApi.me();
+				this.error = null;
+			} catch (e: any) {
+				this.error = e?.response?.data?.message || String(e);
+				throw e;
+			} finally {
+				this.state = "loaded";
+			}
 		},
 
 		selectRole(role: UserRole): void {
@@ -70,7 +90,13 @@ export const useAuthStore = defineStore("auth", {
 			this.error = null;
 		},
 
-		logout(): void {
+		async logout(): Promise<void> {
+			try {
+				await authApi.logout();
+			} catch (e) {
+				// ignore server logout errors, still clear local state
+			}
+
 			localStorage.removeItem(LS_KEY);
 			this.me = null;
 			this.state = "idle";
